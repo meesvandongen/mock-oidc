@@ -1,6 +1,5 @@
 import { defineNetworkFixture, type NetworkFixture } from '@msw/playwright';
 import { test as base } from '@playwright/test';
-import { getMockOidcIdentity, type MockOidcIdentity } from '@mvd/mock-oidc';
 import {
   createMockOidcPlaywrightAdapter,
   type MockOidcPlaywrightAdapter,
@@ -15,12 +14,10 @@ type Claims = typeof mockOidcConfig.claims;
  * the authorization and end session requests without any UI.
  */
 export const test = base.extend<{
-  identity: MockOidcIdentity<Claims>;
   mockOidc: MockOidcPlaywrightAdapter<Claims>;
   network: NetworkFixture;
 }>({
-  identity: [getMockOidcIdentity(mockOidcConfig, 'alice'), { option: true }],
-  mockOidc: async ({ baseURL, context, identity }, use) => {
+  mockOidc: async ({ baseURL, context }, use) => {
     if (!baseURL) {
       throw new Error('The playwright-adapter project requires a baseURL');
     }
@@ -29,7 +26,6 @@ export const test = base.extend<{
       config: mockOidcConfig,
       issuerUrl: baseURL,
       clientId,
-      identity,
     });
     await mockOidc.route(context);
     await use(mockOidc);

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { decodeMockOidcAuthorizationCode } from './authorization.js';
 import { defineMockOidcConfig } from './config.js';
-import { getMockOidcIdentity } from './identity.js';
 import { createMockOidcPlaywrightAdapter } from './playwright.js';
 
 const issuerUrl = 'http://localhost:4301';
@@ -21,7 +20,6 @@ function createAdapter(signedIn?: boolean) {
     config,
     issuerUrl,
     clientId: 'test-client',
-    identity: getMockOidcIdentity(config),
     signedIn,
   });
 }
@@ -162,11 +160,42 @@ describe('createMockOidcPlaywrightAdapter', () => {
     );
   });
 
+  it('starts as the configured default subject', () => {
+    expect(createAdapter().identity).toEqual({
+      subject: 'alice',
+      claims: { name: 'Alice' },
+    });
+  });
+
+  it('resolves the subject and claim overrides from the config', () => {
+    const adapter = createMockOidcPlaywrightAdapter({
+      config,
+      issuerUrl,
+      clientId: 'test-client',
+      subject: 'bob',
+      claims: { name: 'Robert' },
+    });
+
+    expect(adapter.identity).toEqual({ subject: 'bob', claims: { name: 'Robert' } });
+  });
+
   it('serves token claims for the current identity', async () => {
     const adapter = createAdapter();
-    adapter.setIdentity(getMockOidcIdentity(config, 'bob'));
+    adapter.setIdentity('bob');
 
     expect(adapter.identity).toEqual({ subject: 'bob', claims: { name: 'Bob' } });
     expect(adapter.handlers).toHaveLength(4);
+
+    adapter.setIdentity('alice', { claims: { name: 'Alicia' } });
+    expect(adapter.identity).toEqual({
+      subject: 'alice',
+      claims: { name: 'Alicia' },
+    });
+  });
+
+  it('rejects identities that do not match the claims schema', () => {
+    expect(() => createAdapter().setIdentity('carol')).toThrow(
+      'Invalid mock OIDC claims for subject "carol"',
+    );
   });
 });

@@ -10,7 +10,12 @@ import {
   type MockOidcConfig,
   normalizeMockOidcEndpointPath,
 } from './config.js';
-import { getMockOidcUserInfo, type MockOidcIdentity } from './identity.js';
+import {
+  getMockOidcIdentity,
+  getMockOidcUserInfo,
+  type MockOidcIdentity,
+  type MockOidcIdentityOverrides,
+} from './identity.js';
 import { createOidcHandlers, type OidcClaims } from './oidc-handlers.js';
 
 export type CreateMockOidcPlaywrightAdapterOptions<
@@ -20,7 +25,16 @@ export type CreateMockOidcPlaywrightAdapterOptions<
   config: MockOidcConfig<TClaims>;
   issuerUrl: string;
   clientId: string;
-  identity: MockOidcIdentity<TClaims>;
+  /**
+   * The subject signed in by the adapter.
+   * @default config.defaultSubject
+   */
+  subject?: string;
+  /**
+   * Claim values merged over the subject's configured defaults and validated
+   * with the claims schema.
+   */
+  claims?: MockOidcIdentityOverrides<TClaims>['claims'];
   /**
    * Builds the userinfo and token claims for the current identity.
    * Defaults to the identity claims plus `sub`.
@@ -68,8 +82,14 @@ export type MockOidcPlaywrightAdapter<TClaims extends MockOidcClaimsSchema> = {
   route: (router: MockOidcPlaywrightRouter) => Promise<void>;
   /** The identity returned by the token and userinfo endpoints. */
   readonly identity: MockOidcIdentity<TClaims>;
-  /** Switches the identity used for subsequent sign-ins and token requests. */
-  setIdentity: (identity: MockOidcIdentity<TClaims>) => void;
+  /**
+   * Switches the identity used for subsequent sign-ins and token requests.
+   * Overrides are merged over the subject's configured claims.
+   */
+  setIdentity: (
+    subject: string,
+    overrides?: MockOidcIdentityOverrides<TClaims>,
+  ) => void;
   /** Whether the mock provider currently has a session. */
   readonly signedIn: boolean;
 };
@@ -104,7 +124,9 @@ export function createMockOidcPlaywrightAdapter<
     options.getUserInfo ??
     ((identity: MockOidcIdentity<TClaims>) =>
       getMockOidcUserInfo(identity) as unknown as TUserInfo);
-  let identity = options.identity;
+  let identity = getMockOidcIdentity(config, options.subject, {
+    claims: options.claims,
+  });
   let signedIn = options.signedIn ?? false;
 
   function assertPath(requestUrl: string, expectedPath: string) {
@@ -175,8 +197,8 @@ export function createMockOidcPlaywrightAdapter<
     get identity() {
       return identity;
     },
-    setIdentity(nextIdentity) {
-      identity = nextIdentity;
+    setIdentity(subject, overrides) {
+      identity = getMockOidcIdentity(config, subject, overrides);
     },
     get signedIn() {
       return signedIn;

@@ -1,6 +1,4 @@
-import { getMockOidcIdentity } from '@mvd/mock-oidc';
 import { http, HttpResponse } from 'msw';
-import { mockOidcConfig } from '../../src/mock-oidc.config';
 import { expectAnonymous, libraries, readClaims } from '../libraries';
 import { expect, test } from './fixtures';
 
@@ -25,10 +23,10 @@ for (const library of libraries) {
     });
 
     test.describe('with an overridden identity', () => {
-      test.use({
-        identity: getMockOidcIdentity(mockOidcConfig, 'bob', {
+      test.beforeEach(({ mockOidc }) => {
+        mockOidc.setIdentity('bob', {
           claims: { roles: ['admin'], department: 'sales' },
-        }),
+        });
       });
 
       test('signs in with the identity chosen by the test', async ({ page }) => {
@@ -53,7 +51,7 @@ for (const library of libraries) {
       await expectAnonymous(page);
       expect(mockOidc.signedIn).toBe(false);
 
-      mockOidc.setIdentity(getMockOidcIdentity(mockOidcConfig, 'bob'));
+      mockOidc.setIdentity('bob');
       await page.getByRole('button', { name: 'Sign in' }).click();
       await expect(page.getByTestId('subject')).toHaveText('bob');
     });
