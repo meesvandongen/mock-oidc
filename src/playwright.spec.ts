@@ -2,38 +2,59 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { decodeMockOidcAuthorizationCode } from './authorization.js';
 import { defineMockOidcConfig } from './config.js';
-import { getMockOidcIdentity } from './identity.js';
-import { createMockOidcPlaywrightAdapter } from './playwright.js';
+import { createMockOidc } from './playwright.js';
 
 const issuerUrl = 'http://localhost:4301';
 const config = defineMockOidcConfig({
   defaultSubject: 'alice',
   allowedRedirectOrigins: ['http://localhost:5173'],
-  claims: z.object({ name: z.string() }),
+  claims: z.object({
+    name: z.string(),
+    roles: z.array(z.enum(['reader', 'admin'])).default([]),
+  }),
   users: [
-    { subject: 'alice', label: 'Alice', claims: { name: 'Alice' } },
+    { subject: 'alice', label: 'Alice', claims: { name: 'Alice', roles: ['reader'] } },
     { subject: 'bob', label: 'Bob', claims: { name: 'Bob' } },
   ],
 });
 
-function createAdapter(signedIn?: boolean) {
-  return createMockOidcPlaywrightAdapter({
-    config,
-    issuerUrl,
-    clientId: 'test-client',
-    identity: getMockOidcIdentity(config),
-    signedIn,
-  });
+function createProvider(options: Partial<Parameters<typeof createMockOidc>[0]> = {}) {
+  return createMockOidc({ config, issuerUrl, clientId: 'test-client', ...options });
 }
 
 function authorizeUrl(params: Record<string, string>) {
   return `${issuerUrl}/authorize?${new URLSearchParams(params)}`;
 }
 
-describe('createMockOidcPlaywrightAdapter', () => {
+describe('createMockOidc', () => {
+  it('resolves users by subject or with claim overrides', () => {
+    const mockOidc = createProvider();
+    expect(mockOidc.user).toEqual({
+      subject: 'alice',
+      claims: { name: 'Alice', roles: ['reader'] },
+    });
+
+    mockOidc.setUser('bob');
+    expect(mockOidc.user).toEqual({ subject: 'bob', claims: { name: 'Bob', roles: [] } });
+
+    mockOidc.setUser({ subject: 'bob', claims: { roles: ['admin'] } });
+    expect(mockOidc.user.claims).toEqual({ name: 'Bob', roles: ['admin'] });
+
+    mockOidc.setUser({ subject: 'carol', claims: { name: 'Carol' } });
+    expect(mockOidc.user).toEqual({ subject: 'carol', claims: { name: 'Carol', roles: [] } });
+
+    expect(() => mockOidc.setUser('dave')).toThrow(
+      'Invalid mock OIDC claims for subject "dave"',
+    );
+    expect(createProvider({ user: { claims: { roles: ['admin'] } } }).user).toEqual({
+      subject: 'alice',
+      claims: { name: 'Alice', roles: ['admin'] },
+    });
+  });
+
   it('redirects with a code that carries the nonce and PKCE challenge', () => {
     const location = new URL(
-      createAdapter().authorize(
+      createProvider().authorize(
         authorizeUrl({
           response_type: 'code',
           redirect_uri: 'http://localhost:5173/callback?existing=1',
@@ -45,14 +66,10 @@ describe('createMockOidcPlaywrightAdapter', () => {
       ),
     );
 
-    expect(location.origin + location.pathname).toBe(
-      'http://localhost:5173/callback',
-    );
+    expect(location.origin + location.pathname).toBe('http://localhost:5173/callback');
     expect(location.searchParams.get('existing')).toBe('1');
     expect(location.searchParams.get('state')).toBe('state-1');
-    expect(
-      decodeMockOidcAuthorizationCode(location.searchParams.get('code') ?? ''),
-    ).toEqual({
+    expect(decodeMockOidcAuthorizationCode(location.searchParams.get('code') ?? '')).toEqual({
       nonce: 'nonce-1',
       codeChallenge: 'challenge',
       codeChallengeMethod: 'S256',
@@ -61,7 +78,7 @@ describe('createMockOidcPlaywrightAdapter', () => {
 
   it('supports the fragment response mode', () => {
     const location = new URL(
-      createAdapter().authorize(
+      createProvider().authorize(
         authorizeUrl({
           redirect_uri: `${issuerUrl}/callback`,
           state: 'state-1',
@@ -77,96 +94,61 @@ describe('createMockOidcPlaywrightAdapter', () => {
   });
 
   it('answers prompt=none according to the provider session', () => {
-    const adapter = createAdapter();
+    const mockOidc = createProvider();
     const silentRequest = authorizeUrl({
       redirect_uri: `${issuerUrl}/callback`,
       state: 'silent',
       prompt: 'none',
     });
+    const silentResult = () => new URL(mockOidc.authorize(silentRequest)).searchParams;
+
+    expect(silentResult().get('error')).toBe('login_required');
+
+    mockOidc.signIn('bob');
+    expect(mockOidc.signedIn).toBe(true);
+    expect(mockOidc.user.subject).toBe('bob');
+    expect(silentResult().get('code')).not.toBeNull();
+
+    mockOidc.signOut();
+    expect(silentResult().get('error')).toBe('login_required');
+
+    mockOidc.authorize(authorizeUrl({ redirect_uri: `${issuerUrl}/callback`, state: 'login' }));
+    expect(mockOidc.signedIn).toBe(true);
 
     expect(
-      new URL(adapter.authorize(silentRequest)).searchParams.get('error'),
-    ).toBe('login_required');
-
-    adapter.authorize(
-      authorizeUrl({ redirect_uri: `${issuerUrl}/callback`, state: 'login' }),
-    );
-    expect(adapter.signedIn).toBe(true);
-    expect(
-      new URL(adapter.authorize(silentRequest)).searchParams.get('code'),
-    ).not.toBeNull();
-
-    expect(
-      adapter.endSession(
+      mockOidc.endSession(
         `${issuerUrl}/logout?post_logout_redirect_uri=${encodeURIComponent('http://localhost:5173/')}&state=bye`,
       ),
     ).toBe('http://localhost:5173/?state=bye');
-    expect(adapter.signedIn).toBe(false);
-    expect(adapter.endSession(`${issuerUrl}/logout`)).toBeUndefined();
+    expect(mockOidc.signedIn).toBe(false);
+    expect(mockOidc.endSession(`${issuerUrl}/logout`)).toBeUndefined();
+  });
+
+  it('serves the endpoints below an issuer path', () => {
+    const mockOidc = createProvider({ issuerUrl: `${issuerUrl}/oidc/` });
+
+    expect(
+      new URL(
+        mockOidc.authorize(
+          `${issuerUrl}/oidc/authorize?redirect_uri=${encodeURIComponent(`${issuerUrl}/cb`)}`,
+        ),
+      ).searchParams.get('code'),
+    ).not.toBeNull();
+    expect(() =>
+      mockOidc.authorize(`${issuerUrl}/authorize?redirect_uri=${issuerUrl}/cb`),
+    ).toThrow('Unexpected mock OIDC endpoint');
   });
 
   it('rejects redirects to origins that are not allowed', () => {
     expect(() =>
-      createAdapter().authorize(
+      createProvider().authorize(
         authorizeUrl({ redirect_uri: 'https://evil.example/callback', state: 'x' }),
       ),
     ).toThrow('The mock OIDC redirect origin is not allowed');
     expect(() =>
-      createAdapter().endSession(
+      createProvider().endSession(
         `${issuerUrl}/logout?post_logout_redirect_uri=${encodeURIComponent('https://evil.example/')}`,
       ),
     ).toThrow('The mock OIDC redirect origin is not allowed');
-  });
-
-  it('rejects requests for other endpoints', () => {
-    expect(() =>
-      createAdapter().authorize(`${issuerUrl}/other?redirect_uri=x`),
-    ).toThrow('Unexpected mock OIDC endpoint');
-  });
-
-  it('routes the authorization and end session endpoints', async () => {
-    const adapter = createAdapter(true);
-    const routes: {
-      matches: (url: URL) => boolean;
-      handler: Parameters<Parameters<typeof adapter.route>[0]['route']>[1];
-    }[] = [];
-    await adapter.route({
-      route: async (matches, handler) => {
-        routes.push({ matches, handler });
-      },
-    });
-
-    async function fulfill(url: string) {
-      const route = routes.find((candidate) => candidate.matches(new URL(url)));
-      let response: unknown;
-      await route?.handler({
-        request: () => ({ url: () => url }),
-        fulfill: async (value) => {
-          response = value;
-        },
-      });
-      return response;
-    }
-
-    await expect(
-      fulfill(authorizeUrl({ redirect_uri: `${issuerUrl}/cb`, state: 's' })),
-    ).resolves.toMatchObject({
-      status: 302,
-      headers: { location: expect.stringContaining(`${issuerUrl}/cb?code=`) },
-    });
-    await expect(fulfill(`${issuerUrl}/logout`)).resolves.toMatchObject({
-      status: 200,
-    });
-    expect(routes.some((route) => route.matches(new URL(`${issuerUrl}/jwks`)))).toBe(
-      false,
-    );
-  });
-
-  it('serves token claims for the current identity', async () => {
-    const adapter = createAdapter();
-    adapter.setIdentity(getMockOidcIdentity(config, 'bob'));
-
-    expect(adapter.identity).toEqual({ subject: 'bob', claims: { name: 'Bob' } });
-    expect(adapter.handlers).toHaveLength(4);
   });
 });

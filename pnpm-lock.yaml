@@ -24,6 +24,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.9.1
         version: 5.9.1(@standard-schema/spec@1.1.0)(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
+      '@playwright/test':
+        specifier: ^1.64.1
+        version: 1.64.1
       '@types/node':
         specifier: ^26.6.2
         version: 26.6.5
@@ -94,9 +97,6 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
-      '@msw/playwright':
-        specifier: 0.6.7
-        version: 0.6.7(msw@2.15.0(@types/node@26.6.5)(typescript@7.0.2))
       '@playwright/test':
         specifier: ^1.64.1
         version: 1.64.1
@@ -279,12 +279,6 @@ packages:
 
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
-
-  '@msw/playwright@0.6.7':
-    resolution: {integrity: sha512-q7m2JtnN1Iz25xauqx5lkD+tbbDM3oXZBg67aXr4EbxK7IZKTh6c71bbTCnDi/F2SuHq/jPUfS8NJXPcdroARA==}
-    engines: {node: '>=20.0.0'}
-    peerDependencies:
-      msw: ^2.12.10
 
   '@mswjs/interceptors@0.41.9':
     resolution: {integrity: sha512-VVPPgHyQ6ShqnrmDWuxjmUIsO9gWyOZFmuOfLd9LfBGQJwZfy0gvv9pbHSJuoFNIYC7ZDX9aoFwowjcdSC4E8w==}
@@ -1237,12 +1231,6 @@ snapshots:
       '@types/node': 26.6.5
 
   '@jridgewell/sourcemap-codec@1.6.0': {}
-
-  '@msw/playwright@0.6.7(msw@2.15.0(@types/node@26.6.5)(typescript@7.0.2))':
-    dependencies:
-      '@mswjs/interceptors': 0.41.9
-      msw: 2.15.0(@types/node@26.6.5)(typescript@7.0.2)
-      outvariant: 1.4.3
 
   '@mswjs/interceptors@0.41.9':
     dependencies:

@@ -1,16 +1,14 @@
-import { getMockOidcIdentity } from '@mvd/mock-oidc';
 import { http, HttpResponse } from 'msw';
-import { mockOidcConfig } from '../../src/mock-oidc.config';
 import { expectAnonymous, libraries, readClaims } from '../libraries';
 import { expect, test } from './fixtures';
 
 /**
- * The test flow: no authorize page or service worker. The identity is chosen
- * in the test and the adapter answers the provider requests.
+ * The test flow: no authorize page or service worker. The user is chosen in
+ * the test and the mock provider answers from the test process.
  */
 for (const library of libraries) {
   test.describe(library.name, () => {
-    test('signs in as the default identity', async ({ page }) => {
+    test('signs in as the default user', async ({ page }) => {
       await page.goto(library.path);
       await expectAnonymous(page);
       await page.getByRole('button', { name: 'Sign in' }).click();
@@ -24,14 +22,15 @@ for (const library of libraries) {
       });
     });
 
-    test.describe('with an overridden identity', () => {
+    test.describe('with a user chosen by the test', () => {
       test.use({
-        identity: getMockOidcIdentity(mockOidcConfig, 'bob', {
+        mockOidcUser: {
+          subject: 'bob',
           claims: { roles: ['admin'], department: 'sales' },
-        }),
+        },
       });
 
-      test('signs in with the identity chosen by the test', async ({ page }) => {
+      test('signs in with the overridden claims', async ({ page }) => {
         await page.goto(library.path);
         await page.getByRole('button', { name: 'Sign in' }).click();
 
@@ -44,7 +43,7 @@ for (const library of libraries) {
       });
     });
 
-    test('switches identities between sign-ins', async ({ page, mockOidc }) => {
+    test('switches users between sign-ins', async ({ page, mockOidc }) => {
       await page.goto(library.path);
       await page.getByRole('button', { name: 'Sign in' }).click();
       await expect(page.getByTestId('subject')).toHaveText('alice');
@@ -53,17 +52,13 @@ for (const library of libraries) {
       await expectAnonymous(page);
       expect(mockOidc.signedIn).toBe(false);
 
-      mockOidc.setIdentity(getMockOidcIdentity(mockOidcConfig, 'bob'));
+      mockOidc.setUser('bob');
       await page.getByRole('button', { name: 'Sign in' }).click();
       await expect(page.getByTestId('subject')).toHaveText('bob');
     });
 
-    test('lets tests override provider responses', async ({
-      page,
-      network,
-      mockOidc,
-    }) => {
-      network.use(
+    test('lets tests override provider responses', async ({ page, mockOidc }) => {
+      mockOidc.use(
         http.post('*/access_token', () =>
           HttpResponse.json(
             { error: 'invalid_grant', error_description: 'Denied by the test' },

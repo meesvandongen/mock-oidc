@@ -9,7 +9,7 @@ A mock OpenID Connect provider for single-page apps:
 - **MSW** handlers for discovery, JWKS, token and userinfo endpoints,
 - a **Vite** plugin that serves an interactive authorize page, generated from
   the claims schema with [AutoForm](https://github.com/vantezzen/autoform),
-- a **Playwright** adapter that signs in a chosen identity without any UI.
+- **Playwright** fixtures that sign in a chosen user without any UI.
 
 Authorization codes carry the request's `nonce` and PKCE challenge, so the
 token endpoint returns ID tokens with the right `nonce` and rejects
@@ -125,68 +125,56 @@ The selected subject and claims are kept in `sessionStorage`
 
 ## Playwright
 
-The adapter keeps the identity in the test process and answers the
-authorization and end session requests with redirects, so sign-in in E2E
-tests needs neither the authorize page nor the service worker. Combine it
-with [`@msw/playwright`](https://github.com/mswjs/playwright) for the other
-endpoints:
+`withMockOidc` adds a mock provider to every browser context of a Playwright
+`test`. It routes the provider's endpoints from the test process and answers
+sign-in requests with redirects, so tests need neither the authorize page nor
+the service worker.
 
 ```ts
-import { defineNetworkFixture, type NetworkFixture } from '@msw/playwright';
+// fixtures.ts
 import { test as base } from '@playwright/test';
-import { getMockOidcIdentity, type MockOidcIdentity } from '@mvd/mock-oidc';
-import {
-  createMockOidcPlaywrightAdapter,
-  type MockOidcPlaywrightAdapter,
-} from '@mvd/mock-oidc/playwright';
+import { withMockOidc } from '@mvd/mock-oidc/playwright';
 
-type Claims = typeof mockOidcConfig.claims;
-
-export const test = base.extend<{
-  identity: MockOidcIdentity<Claims>;
-  mockOidc: MockOidcPlaywrightAdapter<Claims>;
-  network: NetworkFixture;
-}>({
-  identity: [getMockOidcIdentity(mockOidcConfig, 'demo-user'), { option: true }],
-  mockOidc: async ({ baseURL, context, identity }, use) => {
-    const mockOidc = createMockOidcPlaywrightAdapter({
-      config: mockOidcConfig,
-      issuerUrl: baseURL!,
-      clientId: 'my-app',
-      identity,
-    });
-    await mockOidc.route(context);
-    await use(mockOidc);
-  },
-  network: [
-    async ({ context, mockOidc }, use) => {
-      const network = defineNetworkFixture({ context, handlers: mockOidc.handlers });
-      await network.enable();
-      await use(network);
-      await network.disable();
-    },
-    { auto: true },
-  ],
+export const test = withMockOidc(base, {
+  config: mockOidcConfig,
+  clientId: 'my-app',
+  // issuerUrl defaults to the project's baseURL
 });
 ```
+
+Choose the user with the `mockOidcUser` option: a configured subject, or a
+subject with claim overrides. Overrides are merged over that user's defaults,
+validated with the claims schema and type-checked against it.
 
 ```ts
-test.use({
-  identity: getMockOidcIdentity(mockOidcConfig, 'demo-user', {
-    claims: { permissions: ['app:write'] },
-  }),
-});
+test.use({ mockOidcUser: 'demo-user' });
 
-test('shows the editor', async ({ page, mockOidc }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  // mockOidc.setIdentity(...) switches the identity for later sign-ins.
+test.use({
+  mockOidcUser: { subject: 'demo-user', claims: { permissions: ['app:write'] } },
 });
 ```
 
-`getMockOidcIdentity` merges overrides over the user's defaults and validates
-the result with the claims schema. Pass `signedIn: true` to let `prompt=none`
-requests succeed before an interactive sign-in.
+The `mockOidc` fixture controls the provider during a test:
+
+```ts
+test('switches users', async ({ page, mockOidc }) => {
+  mockOidc.setUser('other-user'); // used by the next sign-in and token request
+  mockOidc.signIn(); // start a provider session, so prompt=none succeeds
+  mockOidc.signOut(); // end it again
+  mockOidc.user; // the resolved { subject, claims }
+
+  // Override provider endpoints with MSW handlers for this test.
+  mockOidc.use(
+    http.post('*/access_token', () =>
+      HttpResponse.json({ error: 'invalid_grant' }, { status: 400 }),
+    ),
+  );
+});
+```
+
+Without the fixtures, `createMockOidc({ config, issuerUrl, clientId, user })`
+returns the same object; call `await mockOidc.install(pageOrContext)` to route
+the endpoints.
 
 ## Development
 
