@@ -2,7 +2,11 @@
   "name": "@mvd/mock-oidc",
   "version": "0.1.0",
   "type": "module",
-  "files": ["dist", "README.md"],
+  "packageManager": "pnpm@10.28.0",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -27,20 +31,28 @@
     "./vite": {
       "types": "./dist/vite.d.ts",
       "import": "./dist/vite.js"
+    },
+    "./authorization": {
+      "types": "./dist/authorization.d.ts",
+      "import": "./dist/authorization.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm build:authorize-page && tsc -p tsconfig.json",
+    "build:authorize-page": "node scripts/build-authorize-page.ts",
+    "typecheck": "pnpm build:authorize-page && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.authorize-page.json && tsc -p tsconfig.scripts.json",
+    "pretest": "pnpm build:authorize-page",
     "test": "vitest run",
+    "test:e2e": "pnpm build && pnpm --filter @mvd/mock-oidc-e2e test",
     "prepack": "pnpm build"
   },
   "dependencies": {
-    "jose": "^6.2.3",
-    "zod": "^4.6.5"
+    "jose": "^6.2.3"
   },
   "peerDependencies": {
     "msw": ">=2 <3",
-    "vite": ">=6 <9"
+    "vite": ">=6 <9",
+    "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "vite": {
@@ -48,12 +60,23 @@
     }
   },
   "devDependencies": {
+    "@autoform/core": "^4.0.0",
+    "@autoform/react": "^5.0.0",
+    "@autoform/zod": "^6.0.0",
+    "@hookform/resolvers": "^5.9.1",
     "@types/node": "^26.6.2",
-    "happy-dom": "^20.14.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitest/browser-playwright": "4.1.11",
     "msw": "^2.15.0",
+    "playwright": "^1.64.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-hook-form": "^7.90.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "zod": "^4.6.7"
   },
   "publishConfig": {
     "access": "public"

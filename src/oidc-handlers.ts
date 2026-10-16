@@ -1,5 +1,9 @@
 import { importJWK, SignJWT } from 'jose';
 import { type HttpHandler, HttpResponse, http } from 'msw';
+import {
+  decodeMockOidcAuthorizationCode,
+  verifyMockOidcCodeVerifier,
+} from './authorization.js';
 
 export type OidcClaims = Record<string, unknown> & {
   sub: string;
@@ -10,11 +14,13 @@ export type CreateOidcHandlersOptions<
   TTokenClaims extends OidcClaims = TUserInfo,
 > = {
   issuerUrl: string;
+  /** Audience of issued tokens when the token request has no `client_id`. */
   clientId: string;
-  getUserInfo: () => TUserInfo;
+  getUserInfo: () => TUserInfo | Promise<TUserInfo>;
   getTokenClaims?: (userInfo: TUserInfo) => TTokenClaims;
   tokenLifetimeSeconds?: number;
   authorizationEndpointPath?: string;
+  endSessionEndpointPath?: string;
   tokenEndpointPath?: string;
   userInfoEndpointPath?: string;
   jwksPath?: string;
@@ -59,6 +65,7 @@ function createWellKnownConfiguration(
   options: Pick<
     CreateOidcHandlersOptions<OidcClaims>,
     | 'authorizationEndpointPath'
+    | 'endSessionEndpointPath'
     | 'tokenEndpointPath'
     | 'userInfoEndpointPath'
     | 'jwksPath'
@@ -66,6 +73,7 @@ function createWellKnownConfiguration(
 ) {
   const authorizationEndpointPath =
     options.authorizationEndpointPath ?? 'authorize';
+  const endSessionEndpointPath = options.endSessionEndpointPath ?? 'logout';
   const tokenEndpointPath = options.tokenEndpointPath ?? 'access_token';
   const userInfoEndpointPath = options.userInfoEndpointPath ?? 'userinfo';
   const jwksPath = options.jwksPath ?? 'jwks';
@@ -79,7 +87,11 @@ function createWellKnownConfiguration(
     token_endpoint: joinIssuerPath(issuerUrl, tokenEndpointPath),
     userinfo_endpoint: joinIssuerPath(issuerUrl, userInfoEndpointPath),
     jwks_uri: joinIssuerPath(issuerUrl, jwksPath),
+    end_session_endpoint: joinIssuerPath(issuerUrl, endSessionEndpointPath),
+    scopes_supported: ['openid', 'profile', 'email', 'offline_access'],
     response_types_supported: ['code'],
+    response_modes_supported: ['query', 'fragment'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
     subject_types_supported: ['public'],
     id_token_signing_alg_values_supported: [mockPrivateJwk.alg],
     token_endpoint_auth_methods_supported: ['none'],
@@ -126,23 +138,31 @@ async function createTokenResponse<
   TTokenClaims extends OidcClaims,
 >(
   options: CreateOidcHandlersOptions<TUserInfo, TTokenClaims>,
-  scope: string | undefined,
+  {
+    scope,
+    nonce,
+    clientId,
+  }: {
+    scope: string | undefined;
+    nonce: string | undefined;
+    clientId: string | undefined;
+  },
 ) {
   const tokenLifetimeSeconds = options.tokenLifetimeSeconds ?? 60 * 60;
-  const userInfo = options.getUserInfo();
+  const userInfo = await options.getUserInfo();
   const tokenClaims = options.getTokenClaims?.(userInfo) ?? userInfo;
 
   const [idToken, accessToken] = await Promise.all([
-    signJwt(tokenClaims, {
+    signJwt(nonce === undefined ? tokenClaims : { ...tokenClaims, nonce }, {
       issuerUrl: options.issuerUrl,
-      clientId: options.clientId,
+      clientId: clientId ?? options.clientId,
       tokenLifetimeSeconds,
       subject: tokenClaims.sub,
       tokenType: 'JWT',
     }),
     signJwt(tokenClaims, {
       issuerUrl: options.issuerUrl,
-      clientId: options.clientId,
+      clientId: clientId ?? options.clientId,
       tokenLifetimeSeconds,
       subject: tokenClaims.sub,
       tokenType: 'at+jwt',
@@ -157,6 +177,18 @@ async function createTokenResponse<
     expires_in: tokenLifetimeSeconds,
     ...(scope === undefined ? {} : { scope }),
   };
+}
+
+const tokenResponseHeaders = {
+  'Cache-Control': 'no-store',
+  Pragma: 'no-cache',
+};
+
+function tokenError(error: string, errorDescription: string) {
+  return HttpResponse.json(
+    { error, error_description: errorDescription },
+    { status: 400, headers: tokenResponseHeaders },
+  );
 }
 
 export function createOidcHandlers<
@@ -187,18 +219,52 @@ export function createOidcHandlers<
     }),
     http.post(tokenUrl, async ({ request }) => {
       const formData = await request.formData();
-      const requestedScope = formData.get('scope');
-      const scope =
-        typeof requestedScope === 'string' && requestedScope.length > 0
-          ? requestedScope
+      const getParameter = (name: string) => {
+        const value = formData.get(name);
+        return typeof value === 'string' && value.length > 0
+          ? value
           : undefined;
+      };
+      const grantType = getParameter('grant_type') ?? 'authorization_code';
+      const scope = getParameter('scope');
+      // Public clients identify themselves in the token request.
+      const clientId = getParameter('client_id');
+
+      if (grantType === 'refresh_token') {
+        return HttpResponse.json(
+          await createTokenResponse(normalizedOptions, {
+            scope,
+            nonce: undefined,
+            clientId,
+          }),
+          { headers: tokenResponseHeaders },
+        );
+      }
+
+      if (grantType !== 'authorization_code') {
+        return tokenError('unsupported_grant_type', `Unsupported grant_type ${grantType}`);
+      }
+
+      const code = decodeMockOidcAuthorizationCode(getParameter('code') ?? '');
+      if (code === undefined) {
+        return tokenError('invalid_grant', 'Unknown mock OIDC authorization code');
+      }
+
+      if (!(await verifyMockOidcCodeVerifier(code, getParameter('code_verifier')))) {
+        return tokenError('invalid_grant', 'The PKCE code_verifier does not match');
+      }
 
       return HttpResponse.json(
-        await createTokenResponse(normalizedOptions, scope),
+        await createTokenResponse(normalizedOptions, {
+          scope,
+          nonce: code.nonce,
+          clientId,
+        }),
+        { headers: tokenResponseHeaders },
       );
     }),
-    http.get(userInfoUrl, () => {
-      return HttpResponse.json(options.getUserInfo());
+    http.get(userInfoUrl, async () => {
+      return HttpResponse.json(await options.getUserInfo());
     }),
   ];
 }

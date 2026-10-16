@@ -1,91 +1,87 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import { z } from 'zod';
 import { defineMockOidcConfig } from './config.js';
-import { getMockOidcIdentity } from './identity.js';
+import { getMockOidcIdentity, getMockOidcUserInfo } from './identity.js';
+
+const claims = z.object({
+  name: z.string().min(1),
+  permissions: z.array(z.enum(['app:read', 'app:write'])).default([]),
+  teams: z.array(z.enum(['support', 'operations'])).default([]),
+});
+
+function createConfig() {
+  return defineMockOidcConfig({
+    defaultSubject: 'app-user',
+    claims,
+    users: [
+      {
+        subject: 'app-user',
+        label: 'Application user',
+        claims: { name: 'App User', permissions: ['app:read'] },
+      },
+    ],
+  });
+}
 
 describe('mock OIDC config', () => {
-  it('applies generic defaults and retains configured claims', () => {
-    const config = defineMockOidcConfig({
-      defaultSubject: 'app-user',
-      claimSelectors: [
-        {
-          claim: 'permissions',
-          label: 'Permissions',
-          options: ['app:read', 'app:write'],
-        },
-      ],
-      users: [
-        {
-          subject: 'app-user',
-          label: 'Application user',
-          claims: {
-            permissions: ['app:read'],
-          },
-        },
-      ],
-    });
+  it('applies defaults and resolves user claims through the schema', () => {
+    const config = createConfig();
 
     expect(config.authorizationEndpointPath).toBe('authorize');
+    expect(config.endSessionEndpointPath).toBe('logout');
     expect(config.allowedRedirectOrigins).toEqual([]);
-    expect(config.users[0]?.claims).toEqual({ permissions: ['app:read'] });
+    expect(config.claims).toBe(claims);
+    expect(config.users[0]?.claims).toEqual({
+      name: 'App User',
+      permissions: ['app:read'],
+      teams: [],
+    });
+    expectTypeOf(config.users[0]!.claims).toEqualTypeOf<z.output<typeof claims>>();
   });
 
-  it('supports arbitrary claim names and validates selected values', () => {
-    const config = defineMockOidcConfig({
-      defaultSubject: 'app-user',
-      claimSelectors: [
-        {
-          claim: 'permissions',
-          label: 'Permissions',
-          options: ['app:read', 'app:write'],
-        },
-        {
-          claim: 'teams',
-          label: 'Teams',
-          options: ['support', 'operations'],
-        },
-      ],
-      users: [
-        {
-          subject: 'app-user',
-          label: 'Application user',
-          claims: {
-            permissions: ['app:read'],
-            teams: ['support'],
-          },
-        },
-      ],
-    });
+  it('merges identity overrides with user defaults and validates them', () => {
+    const config = createConfig();
 
     expect(
       getMockOidcIdentity(config, 'app-user', {
-        claims: {
-          permissions: ['app:write'],
-          teams: ['operations'],
-        },
+        claims: { teams: ['operations'] },
       }),
     ).toEqual({
       subject: 'app-user',
       claims: {
-        permissions: ['app:write'],
+        name: 'App User',
+        permissions: ['app:read'],
         teams: ['operations'],
       },
     });
     expect(() =>
       getMockOidcIdentity(config, 'app-user', {
+        // @ts-expect-error -- not a configured option
         claims: { permissions: ['app:delete'] },
       }),
-    ).toThrow('contains duplicate or unconfigured values');
-    expect(() =>
-      getMockOidcIdentity(config, 'app-user', {
-        claims: { unknown: ['value'] },
-      }),
-    ).toThrow('are not configured as selectors');
+    ).toThrow('Invalid mock OIDC claims for subject "app-user"');
+  });
+
+  it('requires all claims for subjects without a configured user', () => {
+    const config = createConfig();
+
+    expect(() => getMockOidcIdentity(config, 'someone-else')).toThrow(
+      'Invalid mock OIDC claims for subject "someone-else"',
+    );
+    expect(
+      getMockOidcUserInfo(
+        getMockOidcIdentity(config, 'someone-else', {
+          claims: { name: 'Someone' },
+        }),
+      ),
+    ).toEqual({ sub: 'someone-else', name: 'Someone', permissions: [], teams: [] });
   });
 
   it('requires the default subject to be configured', () => {
     expect(() =>
       defineMockOidcConfig({
         defaultSubject: 'missing-user',
+        claims: z.object({}),
         users: [{ subject: 'app-user', label: 'Application user' }],
       }),
     ).toThrow('The default subject must match a configured user');
@@ -95,6 +91,7 @@ describe('mock OIDC config', () => {
     expect(() =>
       defineMockOidcConfig({
         defaultSubject: 'app-user',
+        claims: z.object({}),
         users: [
           { subject: 'app-user', label: 'First user' },
           { subject: 'app-user', label: 'Second user' },
@@ -103,40 +100,52 @@ describe('mock OIDC config', () => {
     ).toThrow('Duplicate mock OIDC user subject: app-user');
   });
 
-  it('rejects default claim values outside the selector options', () => {
+  it('rejects user claims that do not match the schema', () => {
     expect(() =>
       defineMockOidcConfig({
         defaultSubject: 'app-user',
-        claimSelectors: [
-          {
-            claim: 'permissions',
-            label: 'Permissions',
-            options: ['app:read'],
-          },
-        ],
+        claims,
         users: [
           {
             subject: 'app-user',
             label: 'Application user',
-            claims: { permissions: ['app:write'] },
+            // @ts-expect-error -- not a configured option
+            claims: { name: 'App User', permissions: ['app:delete'] },
           },
         ],
       }),
-    ).toThrow('must be configured options');
+    ).toThrow(/users.*0.*claims.*permissions/s);
   });
 
-  it('rejects defaults for claims without selectors', () => {
+  it('rejects reserved claims in the schema', () => {
     expect(() =>
       defineMockOidcConfig({
         defaultSubject: 'app-user',
-        users: [
-          {
-            subject: 'app-user',
-            label: 'Application user',
-            claims: { permissions: ['app:read'] },
-          },
-        ],
+        claims: z.object({ sub: z.string() }),
+        users: [{ subject: 'app-user', label: 'Application user', claims: { sub: 'x' } }],
       }),
-    ).toThrow('has no selector');
+    ).toThrow('must not define the reserved claim sub');
+  });
+
+  it('rejects claims that are not a zod object schema', () => {
+    expect(() =>
+      defineMockOidcConfig({
+        defaultSubject: 'app-user',
+        // @ts-expect-error -- claims must be a zod object
+        claims: { name: 'string' },
+        users: [{ subject: 'app-user', label: 'Application user' }],
+      }),
+    ).toThrow('Mock OIDC claims must be a zod object schema');
+  });
+
+  it('rejects endpoint paths that leave the route root', () => {
+    expect(() =>
+      defineMockOidcConfig({
+        authorizationEndpointPath: '../authorize/index.html',
+        defaultSubject: 'app-user',
+        claims: z.object({}),
+        users: [{ subject: 'app-user', label: 'Application user' }],
+      }),
+    ).toThrow('Invalid mock OIDC endpoint path');
   });
 });

@@ -1,5 +1,8 @@
 packages:
   - .
+  - e2e
 
 allowBuilds:
+  '@axa-fr/oidc-client': false
+  '@axa-fr/react-oidc': false
   msw: false
