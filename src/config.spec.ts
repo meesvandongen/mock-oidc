@@ -149,3 +149,126 @@ describe('mock OIDC config', () => {
     ).toThrow('Invalid mock OIDC endpoint path');
   });
 });
+
+describe('mock OIDC config with nested claims', () => {
+  const nestedClaims = z.object({
+    organization: z.object({
+      name: z.string().min(1),
+      address: z.object({
+        city: z.string().min(1),
+        country: z.enum(['NL', 'BE']).default('NL'),
+      }),
+    }),
+    memberships: z
+      .array(
+        z.object({
+          team: z.string().min(1),
+          roles: z.array(z.enum(['member', 'lead'])).min(1),
+          projects: z
+            .array(z.object({ key: z.string(), archived: z.boolean().default(false) }))
+            .default([]),
+        }),
+      )
+      .default([]),
+    group_paths: z.array(z.array(z.string())).default([]),
+  });
+
+  function createNestedConfig() {
+    return defineMockOidcConfig({
+      defaultSubject: 'carol',
+      claims: nestedClaims,
+      users: [
+        {
+          subject: 'carol',
+          label: 'Carol',
+          claims: {
+            organization: { name: 'Acme', address: { city: 'Utrecht' } },
+            memberships: [
+              { team: 'platform', roles: ['lead'], projects: [{ key: 'API' }] },
+              { team: 'support', roles: ['member'] },
+            ],
+            group_paths: [['acme', 'engineering']],
+          },
+        },
+      ],
+    });
+  }
+
+  it('applies defaults at every level of nesting', () => {
+    expect(createNestedConfig().users[0]?.claims).toEqual({
+      organization: { name: 'Acme', address: { city: 'Utrecht', country: 'NL' } },
+      memberships: [
+        {
+          team: 'platform',
+          roles: ['lead'],
+          projects: [{ key: 'API', archived: false }],
+        },
+        { team: 'support', roles: ['member'], projects: [] },
+      ],
+      group_paths: [['acme', 'engineering']],
+    });
+  });
+
+  it('reports the path of invalid values inside arrays of objects', () => {
+    let error: unknown;
+    try {
+      defineMockOidcConfig({
+        defaultSubject: 'carol',
+        claims: nestedClaims,
+        users: [
+          {
+            subject: 'carol',
+            label: 'Carol',
+            claims: {
+              organization: { name: 'Acme', address: { city: 'Utrecht' } },
+              memberships: [
+                { team: 'platform', roles: ['lead'] },
+                // @ts-expect-error -- not a configured option
+                { team: 'support', roles: ['owner'] },
+              ],
+            },
+          },
+        ],
+      });
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(z.ZodError);
+    expect((error as z.ZodError).issues.map((issue) => issue.path)).toEqual([
+      ['users', 0, 'claims', 'memberships', 1, 'roles', 0],
+    ]);
+  });
+
+  it('replaces nested claims as a whole when overriding them', () => {
+    const config = createNestedConfig();
+
+    // Overrides are merged one level deep: a nested claim replaces the
+    // configured value, and is validated (and defaulted) as a whole.
+    expect(
+      getMockOidcIdentity(config, 'carol', {
+        claims: { memberships: [{ team: 'security', roles: ['member'] }] },
+      }).claims,
+    ).toEqual({
+      organization: { name: 'Acme', address: { city: 'Utrecht', country: 'NL' } },
+      memberships: [{ team: 'security', roles: ['member'], projects: [] }],
+      group_paths: [['acme', 'engineering']],
+    });
+    expect(() =>
+      getMockOidcIdentity(config, 'carol', {
+        // @ts-expect-error -- the override replaces the organization, so it needs a name
+        claims: { organization: { address: { city: 'Delft' } } },
+      }),
+    ).toThrow('Invalid mock OIDC claims for subject "carol"');
+  });
+
+  it('includes nested claims in the userinfo', () => {
+    expect(
+      getMockOidcUserInfo(getMockOidcIdentity(createNestedConfig(), 'carol')),
+    ).toMatchObject({
+      sub: 'carol',
+      organization: { address: { city: 'Utrecht' } },
+      memberships: [{ projects: [{ key: 'API' }] }, { team: 'support' }],
+    });
+  });
+});

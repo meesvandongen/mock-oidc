@@ -27,6 +27,11 @@ for (const library of libraries) {
         email: 'bob@example.com',
         roles: ['editor', 'admin'],
         email_verified: true,
+        address: { locality: 'Antwerp', country: 'BE' },
+        tenants: [
+          { id: 'acme', permissions: ['read', 'write'] },
+          { id: 'globex', permissions: ['billing'] },
+        ],
       });
     });
 
