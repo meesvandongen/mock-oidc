@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build:pages": "vite build --mode static --base /mock-oidc/",
     "test": "playwright test",
     "typecheck": "tsc -p tsconfig.json"
   },

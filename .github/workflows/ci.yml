@@ -20,7 +20,7 @@ jobs:
       - run: pnpm typecheck
       - name: Unit tests (Node and Chromium)
         run: pnpm test
-      - name: E2E tests (vite-dev and playwright-adapter)
+      - name: E2E tests (vite-dev, vite-static and playwright-adapter)
         run: pnpm test:e2e
       - run: pnpm --filter @mvd/mock-oidc-e2e typecheck
       - uses: actions/upload-artifact@v4

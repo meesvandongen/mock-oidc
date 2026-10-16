@@ -1,9 +1,10 @@
 import { AuthProvider, useAuth } from 'oidc-react';
 import { createRoot } from 'react-dom/client';
+import { issuerUrl, pageUrl } from '../src/app-urls';
 import { enableMocking } from '../src/mocks';
 import { Profile } from '../src/profile';
 
-const appUrl = `${window.location.origin}/oidc-react/`;
+const appUrl = pageUrl('oidc-react/');
 
 function App() {
   const auth = useAuth();
@@ -23,7 +24,7 @@ await enableMocking();
 
 createRoot(document.getElementById('root')!).render(
   <AuthProvider
-    authority={window.location.origin}
+    authority={issuerUrl}
     clientId="oidc-react"
     redirectUri={appUrl}
     postLogoutRedirectUri={appUrl}

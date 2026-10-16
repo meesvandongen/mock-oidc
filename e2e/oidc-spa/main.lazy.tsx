@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import { issuerUrl } from '../src/app-urls';
 import { enableMocking } from '../src/mocks';
 import { Profile } from '../src/profile';
 import { bootstrapOidc, OidcInitializationGate, useOidc } from './oidc';
@@ -29,7 +30,7 @@ await enableMocking();
 
 bootstrapOidc({
   implementation: 'real',
-  issuerUri: window.location.origin,
+  issuerUri: issuerUrl,
   clientId: 'oidc-spa',
   scopes: ['openid', 'profile', 'email'],
 });

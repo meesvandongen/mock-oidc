@@ -1,11 +1,14 @@
 import { expect, type Page } from '@playwright/test';
 
-/** Example pages, one per OIDC client library, served by the e2e app. */
+/**
+ * Example pages, one per OIDC client library, relative to the project's
+ * `baseURL` so they also work when the app is served under a sub-path.
+ */
 export const libraries = [
-  { name: 'react-oidc-context', path: '/react-oidc-context/' },
-  { name: 'oidc-react', path: '/oidc-react/' },
-  { name: 'oidc-spa', path: '/oidc-spa/' },
-  { name: '@axa-fr/react-oidc', path: '/axa-fr/' },
+  { name: 'react-oidc-context', path: 'react-oidc-context/' },
+  { name: 'oidc-react', path: 'oidc-react/' },
+  { name: 'oidc-spa', path: 'oidc-spa/' },
+  { name: '@axa-fr/react-oidc', path: 'axa-fr/' },
 ] as const;
 
 export type Library = (typeof libraries)[number];

@@ -1,5 +1,8 @@
 # @mvd/mock-oidc
 
+**Live demo:** https://meesvandongen.github.io/mock-oidc/ — the example app
+from `e2e/` as a static site, with one page per OIDC client library.
+
 A mock OpenID Connect provider for single-page apps:
 
 - a **zod** based configuration of mock users and their claims,
@@ -71,6 +74,11 @@ export default defineConfig(({ mode }) => ({
 
 The plugin serves the authorize and end session pages in development and
 writes them into `outputDirectory` on build, for static preview deployments.
+Extensionless paths are written as HTML files (`authorize` becomes
+`authorize.html`, `oidc/logout/` becomes `oidc/logout/index.html`), which
+`vite preview` and static hosts such as Netlify, Vercel (`cleanUrls`),
+Cloudflare Pages and GitHub Pages serve at the configured URL. Include the
+MSW worker in such builds to serve the other endpoints.
 The pages are self-contained: the authorize form is a prebuilt React and
 AutoForm bundle, so your app needs neither. The claims schema is embedded as
 JSON Schema and turned back into a zod schema in the browser:
@@ -89,8 +97,9 @@ JSON Schema and turned back into a zod schema in the browser:
 and transforms cannot be represented as JSON Schema; they are not checked by
 the form, but they are applied when the MSW handlers read the identity.
 
-The endpoints are served from the root of the dev server, so use the app
-origin as issuer. The provider's other endpoints run in the browser with MSW:
+The endpoint paths are relative to Vite's `base`, both on the dev server and
+in the build output, so use the app's base URL as issuer (the origin when
+`base` is `/`). The provider's other endpoints run in the browser with MSW:
 
 ```ts
 import { createOidcHandlers } from '@mvd/mock-oidc';
@@ -100,7 +109,7 @@ import { setupWorker } from 'msw/browser';
 
 const worker = setupWorker(
   ...createOidcHandlers({
-    issuerUrl: window.location.origin,
+    issuerUrl: new URL(import.meta.env.BASE_URL, location.origin).href.replace(/\/$/, ''),
     clientId: 'my-app',
     authorizationEndpointPath: mockOidcConfig.authorizationEndpointPath,
     endSessionEndpointPath: mockOidcConfig.endSessionEndpointPath,
@@ -197,9 +206,16 @@ chromium`). To use a different Chromium build, set
 [oidc-react](https://github.com/bjerkio/oidc-react),
 [oidc-spa](https://github.com/keycloakify/oidc-spa) and
 [@axa-fr/react-oidc](https://github.com/AxaFrance/oidc-client). Every library
-is tested in two Playwright projects:
+is tested in three Playwright projects:
 
 - `vite-dev` runs the development flow: the MSW worker in the browser plus the
-  AutoForm authorize page from the Vite plugin;
+  AutoForm authorize page served by the Vite plugin;
+- `vite-static` runs the same tests against a static build served by
+  `vite preview` under `/mock-oidc/`, using the pages the plugin writes to the
+  build output;
 - `playwright-adapter` runs the app without the plugin and worker
   (`vite --mode playwright`) and mocks the provider from the test process.
+
+The same static build is published to GitHub Pages by
+`.github/workflows/pages.yml` on every push to `main`. Build it locally with
+`pnpm --filter @mvd/mock-oidc-e2e build:pages`.

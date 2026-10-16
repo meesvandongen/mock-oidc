@@ -119,7 +119,45 @@ describe('mockOidcAuthorizePage', () => {
     }
   });
 
-  it('copies the mock page into the configured client build output', async () => {
+  it('serves the pages relative to the Vite base', async () => {
+    const server = await createServer({
+      configFile: false,
+      appType: 'custom',
+      logLevel: 'silent',
+      base: '/app/',
+      plugins: [
+        mockOidcAuthorizePage({
+          enabled: true,
+          outputDirectory: 'dist',
+          config: createTestConfig('authorize'),
+        }),
+      ],
+      server: { host: '127.0.0.1', port: 0 },
+    });
+
+    try {
+      await server.listen();
+      const address = server.httpServer?.address();
+      if (!address || typeof address === 'string') {
+        throw new Error('The Vite mock authorize test server did not start');
+      }
+      const origin = `http://127.0.0.1:${address.port}`;
+
+      const page = await get(`${origin}/app/authorize?state=test`);
+      expect(page.statusCode).toBe(200);
+      expect(page.body).toContain('<title>Mock OIDC login</title>');
+      expect((await get(`${origin}/authorize`)).body).not.toContain(
+        '<title>Mock OIDC login</title>',
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  async function buildWithPlugin(
+    config: ReturnType<typeof createTestConfig>,
+    readPages: (outputDirectory: string) => Promise<void>,
+  ) {
     const root = await mkdtemp(join(tmpdir(), 'auth-mock-authorize-'));
 
     try {
@@ -137,7 +175,7 @@ describe('mockOidcAuthorizePage', () => {
           mockOidcAuthorizePage({
             enabled: true,
             outputDirectory: 'build/client',
-            config: createTestConfig(),
+            config,
           }),
         ],
         build: {
@@ -146,17 +184,38 @@ describe('mockOidcAuthorizePage', () => {
         },
       });
 
-      const copiedPage = await readFile(
-        join(root, 'build/client/oidc/authorize/index.html'),
-        'utf8',
-      );
-      expect(copiedPage).toContain('<title>Mock OIDC login</title>');
-      await expect(
-        readFile(join(root, 'build/client/oidc/logout/index.html'), 'utf8'),
-      ).resolves.toContain('<title>Mock OIDC logout</title>');
+      await readPages(join(root, 'build/client'));
     } finally {
       await rm(root, { recursive: true, force: true });
     }
+  }
+
+  it('copies the mock pages into the configured client build output', async () => {
+    await buildWithPlugin(createTestConfig(), async (outputDirectory) => {
+      await expect(
+        readFile(join(outputDirectory, 'oidc/authorize/index.html'), 'utf8'),
+      ).resolves.toContain('<title>Mock OIDC login</title>');
+      await expect(
+        readFile(join(outputDirectory, 'oidc/logout/index.html'), 'utf8'),
+      ).resolves.toContain('<title>Mock OIDC logout</title>');
+    });
+  });
+
+  it('writes extensionless endpoints as HTML files for static hosts', async () => {
+    const config = defineMockOidcConfig({
+      ...createTestConfig(),
+      authorizationEndpointPath: 'authorize',
+      endSessionEndpointPath: 'oidc/logout/',
+    });
+
+    await buildWithPlugin(config, async (outputDirectory) => {
+      await expect(
+        readFile(join(outputDirectory, 'authorize.html'), 'utf8'),
+      ).resolves.toContain('<title>Mock OIDC login</title>');
+      await expect(
+        readFile(join(outputDirectory, 'oidc/logout/index.html'), 'utf8'),
+      ).resolves.toContain('<title>Mock OIDC logout</title>');
+    });
   });
 
   it('registers a reusable Vite plugin when mock authorization is enabled', () => {

@@ -2,6 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 const devServerUrl = 'http://localhost:5173';
 const playwrightServerUrl = 'http://localhost:5174';
+// Served under the same sub-path as the GitHub Pages deployment.
+const staticBase = '/mock-oidc/';
+const staticServerUrl = `http://localhost:5175${staticBase}`;
 
 // Allows running against a preinstalled Chromium whose revision differs from
 // the one bundled with the installed Playwright version.
@@ -23,8 +26,16 @@ export default defineConfig({
       // The development flow: MSW worker in the browser plus the
       // interactive authorize page served by the Vite plugin.
       name: 'vite-dev',
-      testDir: 'tests/vite-dev',
+      testDir: 'tests/vite-plugin',
       use: { baseURL: devServerUrl },
+    },
+    {
+      // The same flow against a static build: the pages the Vite plugin
+      // writes to the build output, served by `vite preview` under the
+      // GitHub Pages sub-path.
+      name: 'vite-static',
+      testDir: 'tests/vite-plugin',
+      use: { baseURL: staticServerUrl },
     },
     {
       // The test flow: the Playwright adapter mocks the provider from the
@@ -44,6 +55,14 @@ export default defineConfig({
       command: 'pnpm exec vite --mode playwright --port 5174 --strictPort',
       url: playwrightServerUrl,
       reuseExistingServer: !process.env.CI,
+    },
+    {
+      command:
+        `pnpm exec vite build --mode static --base ${staticBase} && ` +
+        `pnpm exec vite preview --mode static --base ${staticBase} --port 5175 --strictPort`,
+      url: staticServerUrl,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
     },
   ],
 });

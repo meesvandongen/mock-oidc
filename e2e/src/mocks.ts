@@ -1,6 +1,7 @@
 import { createOidcHandlers } from '@mvd/mock-oidc';
 import { getMockOidcUserInfo } from '@mvd/mock-oidc/identity';
 import { getMockOidcIdentityFromWindow } from '@mvd/mock-oidc/session';
+import { issuerUrl, pageUrl } from './app-urls';
 import { clientId, mockOidcConfig } from './mock-oidc.config';
 
 /**
@@ -19,7 +20,7 @@ export async function enableMocking() {
   const { setupWorker } = await import('msw/browser');
   const worker = setupWorker(
     ...createOidcHandlers({
-      issuerUrl: window.location.origin,
+      issuerUrl,
       clientId,
       authorizationEndpointPath: mockOidcConfig.authorizationEndpointPath,
       endSessionEndpointPath: mockOidcConfig.endSessionEndpointPath,
@@ -28,5 +29,9 @@ export async function enableMocking() {
     }),
   );
 
-  await worker.start({ onUnhandledRequest: 'bypass', quiet: true });
+  await worker.start({
+    serviceWorker: { url: pageUrl('mockServiceWorker.js') },
+    onUnhandledRequest: 'bypass',
+    quiet: true,
+  });
 }

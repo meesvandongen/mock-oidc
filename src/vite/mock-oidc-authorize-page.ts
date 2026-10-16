@@ -78,6 +78,22 @@ export function renderMockOidcPage(
 
 export { createMockOidcFormSchema };
 
+/**
+ * Static hosts only serve files with an HTML extension as HTML. Extensionless
+ * endpoints such as `/authorize` are written as `authorize.html`, which
+ * `vite preview` and most static hosts serve at the extensionless URL, and
+ * paths ending in `/` as `index.html` inside that directory.
+ */
+function getStaticPageFile(pagePath: string) {
+  const relativePath = pagePath.slice(1);
+  if (relativePath.endsWith('/')) {
+    return `${relativePath}index.html`;
+  }
+
+  const lastSegment = relativePath.split('/').at(-1) ?? '';
+  return lastSegment.includes('.') ? relativePath : `${relativePath}.html`;
+}
+
 export function mockOidcAuthorizePage<TClaims extends MockOidcClaimsSchema>(
   options: MockOidcAuthorizePageOptions<TClaims>,
 ): Plugin | undefined {
@@ -97,18 +113,24 @@ export function mockOidcAuthorizePage<TClaims extends MockOidcClaimsSchema>(
     ],
   ]);
   let projectRoot = process.cwd();
+  let base = '/';
   let clientOutputDirectory: string | undefined;
 
   return {
     name: '@mvd/mock-oidc:authorize-page',
     configResolved(resolvedConfig) {
       projectRoot = resolvedConfig.root;
+      base = resolvedConfig.base;
       clientOutputDirectory = resolve(projectRoot, options.outputDirectory);
     },
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
+        // Endpoint paths are relative to Vite's base, like the files that
+        // are written to the build output.
         const requestPath = (request.url ?? '/').split('?', 1)[0] ?? '/';
-        const page = pages.get(requestPath);
+        const page = requestPath.startsWith(base)
+          ? pages.get(`/${requestPath.slice(base.length)}`)
+          : undefined;
         if (
           page === undefined ||
           (request.method !== 'GET' && request.method !== 'HEAD')
@@ -139,7 +161,10 @@ export function mockOidcAuthorizePage<TClaims extends MockOidcClaimsSchema>(
       }
 
       for (const [pagePath, page] of pages) {
-        const outputPath = resolve(clientOutputDirectory, pagePath.slice(1));
+        const outputPath = resolve(
+          clientOutputDirectory,
+          getStaticPageFile(pagePath),
+        );
         const relativeOutputPath = relative(clientOutputDirectory, outputPath);
 
         if (
