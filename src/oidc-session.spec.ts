@@ -1,29 +1,24 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { MockOidcConfigInput } from './config.js';
+import { z } from 'zod';
+import { defineMockOidcConfig } from './config.js';
 import {
+  clearMockOidcSessionInWindow,
   getMockOidcClaimsFromWindow,
   getMockOidcIdentityFromWindow,
   getMockOidcSubjectFromWindow,
+  getStoredMockOidcSubject,
   mockOidcClaimsStorageKey,
   mockOidcSubjectStorageKey,
   setMockOidcClaimsInWindow,
   setMockOidcSubjectInWindow,
 } from './oidc-session.js';
 
-const mockOidcConfig: MockOidcConfigInput = {
+const mockOidcConfig = defineMockOidcConfig({
   defaultSubject: 'mock-subject',
-  claimSelectors: [
-    {
-      claim: 'permissions',
-      label: 'Permissions',
-      options: ['app:read', 'app:write'],
-    },
-    {
-      claim: 'teams',
-      label: 'Teams',
-      options: ['support'],
-    },
-  ],
+  claims: z.object({
+    permissions: z.array(z.enum(['app:read', 'app:write'])),
+    teams: z.array(z.enum(['support'])),
+  }),
   users: [
     {
       subject: 'mock-subject',
@@ -34,17 +29,19 @@ const mockOidcConfig: MockOidcConfigInput = {
       },
     },
   ],
-};
+});
 
 describe('mock OIDC session', () => {
   beforeEach(() => {
     window.sessionStorage.clear();
   });
 
-  it('reads and persists the configured default subject', () => {
+  it('falls back to the default subject without starting a session', () => {
     expect(getMockOidcSubjectFromWindow(window, 'mock-subject')).toBe(
       'mock-subject',
     );
+    expect(getStoredMockOidcSubject(window)).toBeUndefined();
+
     window.sessionStorage.setItem(mockOidcSubjectStorageKey, 'other-subject');
     expect(getMockOidcSubjectFromWindow(window, 'mock-subject')).toBe(
       'other-subject',
@@ -59,7 +56,7 @@ describe('mock OIDC session', () => {
     );
   });
 
-  it('stores arbitrary claim selections together', () => {
+  it('stores claim selections together', () => {
     const claims = {
       permissions: ['app:read', 'app:write'],
       teams: ['support'],
@@ -76,7 +73,7 @@ describe('mock OIDC session', () => {
     expect(getMockOidcClaimsFromWindow(window)).toBeUndefined();
   });
 
-  it('resolves browser state with user defaults and stored overrides', () => {
+  it('resolves browser state with user defaults and stored claims', () => {
     expect(getMockOidcIdentityFromWindow(window, mockOidcConfig)).toEqual({
       subject: 'mock-subject',
       claims: {
@@ -99,14 +96,29 @@ describe('mock OIDC session', () => {
     });
   });
 
-  it('rejects malformed stored claim selections', () => {
+  it('validates stored claims with the claims schema', () => {
     window.sessionStorage.setItem(
       mockOidcClaimsStorageKey,
-      '{"permissions":"app:read"}',
+      '{"permissions":"app:read","teams":[]}',
     );
 
-    expect(() => getMockOidcClaimsFromWindow(window)).toThrow(
-      'Mock OIDC claim selection "permissions" must be an array of unique non-empty strings',
+    expect(() => getMockOidcIdentityFromWindow(window, mockOidcConfig)).toThrow(
+      'Invalid mock OIDC claims in session storage',
     );
+
+    window.sessionStorage.setItem(mockOidcClaimsStorageKey, '["app:read"]');
+    expect(() => getMockOidcClaimsFromWindow(window)).toThrow(
+      'Mock OIDC claim selection must be an object',
+    );
+  });
+
+  it('clears the mock session', () => {
+    setMockOidcSubjectInWindow(window, 'mock-subject');
+    setMockOidcClaimsInWindow(window, { permissions: [], teams: [] });
+
+    clearMockOidcSessionInWindow(window);
+
+    expect(getStoredMockOidcSubject(window)).toBeUndefined();
+    expect(getMockOidcClaimsFromWindow(window)).toBeUndefined();
   });
 });

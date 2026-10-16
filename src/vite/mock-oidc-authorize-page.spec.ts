@@ -5,43 +5,29 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build, createServer } from 'vite';
 import { describe, expect, it } from 'vitest';
-import { ZodError } from 'zod';
+import { z } from 'zod';
 import { defineMockOidcConfig } from '../config.js';
-import { mockOidcAuthorizePage } from './mock-oidc-authorize-page.js';
-
-function expectValidationIssue(action: () => unknown, message: string) {
-  let issues: readonly { message: string }[] = [];
-
-  try {
-    action();
-  } catch (error) {
-    if (!(error instanceof ZodError)) {
-      throw error;
-    }
-    issues = error.issues;
-  }
-
-  expect(issues.map((issue) => issue.message)).toContain(message);
-}
+import {
+  createMockOidcFormSchema,
+  mockOidcAuthorizePage,
+} from './mock-oidc-authorize-page.js';
 
 function createTestConfig(
   authorizationEndpointPath = 'oidc/authorize/index.html',
 ) {
   return defineMockOidcConfig({
     authorizationEndpointPath,
+    endSessionEndpointPath: 'oidc/logout/index.html',
     defaultSubject: 'custom-user',
-    claimSelectors: [
-      {
-        claim: 'permissions',
-        label: 'Permissions',
-        options: ['role:read', 'role:write'],
-      },
-      {
-        claim: 'teams',
-        label: 'Teams',
-        options: ['support', 'operations'],
-      },
-    ],
+    claims: z.object({
+      permissions: z
+        .array(z.enum(['role:read', 'role:write']))
+        .meta({ title: 'Permissions' }),
+      teams: z
+        .array(z.enum(['support', 'operations']))
+        .meta({ title: 'Teams', description: 'Teams of the user' }),
+      email: z.email().optional(),
+    }),
     users: [
       {
         subject: 'custom-user',
@@ -114,23 +100,64 @@ describe('mockOidcAuthorizePage', () => {
       expect(response.statusCode).toBe(200);
       expect(response.headers['content-type']).toContain('text/html');
       expect(response.body).toContain('<title>Mock OIDC login</title>');
-      expect(response.body).toContain('custom-user');
-      expect(response.body).toContain('Custom User');
+      expect(response.body).toContain('"subject":"custom-user"');
+      expect(response.body).toContain('"label":"Custom User"');
+      expect(response.body).toContain('"page":"authorize"');
       expect(response.body).toContain('mock.oidc.claims');
-      expect(response.body).toContain('"claim":"permissions"');
-      expect(response.body).toContain('"label":"Permissions"');
-      expect(response.body).toContain('"claim":"teams"');
-      expect(response.body).toContain('"label":"Teams"');
-      expect(response.body).toContain('role:read');
+      expect(response.body).toContain('"title":"Permissions"');
       expect(response.body).toContain('role:write');
       expect(response.body).toContain('operations');
-      expect(response.body).toContain("checkbox.type = 'checkbox'");
+
+      const logout = await get(
+        `http://127.0.0.1:${address.port}/oidc/logout/index.html`,
+      );
+      expect(logout.statusCode).toBe(200);
+      expect(logout.body).toContain('<title>Mock OIDC logout</title>');
+      expect(logout.body).toContain('"page":"end-session"');
     } finally {
       await server.close();
     }
   });
 
-  it('copies the mock page into the configured client build output', async () => {
+  it('serves the pages relative to the Vite base', async () => {
+    const server = await createServer({
+      configFile: false,
+      appType: 'custom',
+      logLevel: 'silent',
+      base: '/app/',
+      plugins: [
+        mockOidcAuthorizePage({
+          enabled: true,
+          outputDirectory: 'dist',
+          config: createTestConfig('authorize'),
+        }),
+      ],
+      server: { host: '127.0.0.1', port: 0 },
+    });
+
+    try {
+      await server.listen();
+      const address = server.httpServer?.address();
+      if (!address || typeof address === 'string') {
+        throw new Error('The Vite mock authorize test server did not start');
+      }
+      const origin = `http://127.0.0.1:${address.port}`;
+
+      const page = await get(`${origin}/app/authorize?state=test`);
+      expect(page.statusCode).toBe(200);
+      expect(page.body).toContain('<title>Mock OIDC login</title>');
+      expect((await get(`${origin}/authorize`)).body).not.toContain(
+        '<title>Mock OIDC login</title>',
+      );
+    } finally {
+      await server.close();
+    }
+  });
+
+  async function buildWithPlugin(
+    config: ReturnType<typeof createTestConfig>,
+    readPages: (outputDirectory: string) => Promise<void>,
+  ) {
     const root = await mkdtemp(join(tmpdir(), 'auth-mock-authorize-'));
 
     try {
@@ -148,7 +175,7 @@ describe('mockOidcAuthorizePage', () => {
           mockOidcAuthorizePage({
             enabled: true,
             outputDirectory: 'build/client',
-            config: createTestConfig(),
+            config,
           }),
         ],
         build: {
@@ -157,14 +184,38 @@ describe('mockOidcAuthorizePage', () => {
         },
       });
 
-      const copiedPage = await readFile(
-        join(root, 'build/client/oidc/authorize/index.html'),
-        'utf8',
-      );
-      expect(copiedPage).toContain('<title>Mock OIDC login</title>');
+      await readPages(join(root, 'build/client'));
     } finally {
       await rm(root, { recursive: true, force: true });
     }
+  }
+
+  it('copies the mock pages into the configured client build output', async () => {
+    await buildWithPlugin(createTestConfig(), async (outputDirectory) => {
+      await expect(
+        readFile(join(outputDirectory, 'oidc/authorize/index.html'), 'utf8'),
+      ).resolves.toContain('<title>Mock OIDC login</title>');
+      await expect(
+        readFile(join(outputDirectory, 'oidc/logout/index.html'), 'utf8'),
+      ).resolves.toContain('<title>Mock OIDC logout</title>');
+    });
+  });
+
+  it('writes extensionless endpoints as HTML files for static hosts', async () => {
+    const config = defineMockOidcConfig({
+      ...createTestConfig(),
+      authorizationEndpointPath: 'authorize',
+      endSessionEndpointPath: 'oidc/logout/',
+    });
+
+    await buildWithPlugin(config, async (outputDirectory) => {
+      await expect(
+        readFile(join(outputDirectory, 'authorize.html'), 'utf8'),
+      ).resolves.toContain('<title>Mock OIDC login</title>');
+      await expect(
+        readFile(join(outputDirectory, 'oidc/logout/index.html'), 'utf8'),
+      ).resolves.toContain('<title>Mock OIDC logout</title>');
+    });
   });
 
   it('registers a reusable Vite plugin when mock authorization is enabled', () => {
@@ -189,39 +240,56 @@ describe('mockOidcAuthorizePage', () => {
     ).toBeUndefined();
   });
 
-  it('rejects authorization paths that leave the configured route root', () => {
-    expect(() =>
-      defineMockOidcConfig({
-        ...createTestConfig(),
-        authorizationEndpointPath: '../authorize/index.html',
-      }),
-    ).toThrow('Invalid mock OIDC authorization endpoint path');
+  it('describes the form as JSON Schema with the subject first', () => {
+    expect(createMockOidcFormSchema(createTestConfig().claims)).toEqual({
+      type: 'object',
+      properties: {
+        sub: { type: 'string', minLength: 1, title: 'Subject' },
+        permissions: {
+          title: 'Permissions',
+          type: 'array',
+          items: { type: 'string', enum: ['role:read', 'role:write'] },
+        },
+        teams: {
+          title: 'Teams',
+          description: 'Teams of the user',
+          type: 'array',
+          items: { type: 'string', enum: ['support', 'operations'] },
+        },
+        email: expect.objectContaining({ type: 'string', format: 'email' }),
+      },
+      required: ['sub', 'permissions', 'teams'],
+    });
   });
 
-  it('rejects default claim values that are not available to the user', () => {
-    expectValidationIssue(
-      () =>
-        defineMockOidcConfig({
-        authorizationEndpointPath: 'oidc/authorize/index.html',
-        defaultSubject: 'custom-user',
-        claimSelectors: [
-          {
-            claim: 'permissions',
-            label: 'Permissions',
-            options: ['role:read'],
-          },
-        ],
-        users: [
-          {
-            subject: 'custom-user',
-            label: 'Custom User',
-            claims: {
-              permissions: ['role:write'],
-            },
-          },
-        ],
-        }),
-      'Default values for claim permissions must be configured options',
-    );
+  it('escapes the embedded page data', async () => {
+    const config = defineMockOidcConfig({
+      defaultSubject: 'user',
+      claims: z.object({}),
+      users: [{ subject: 'user', label: '</script><script>alert(1)</script>' }],
+    });
+    const server = await createServer({
+      configFile: false,
+      appType: 'custom',
+      logLevel: 'silent',
+      plugins: [
+        mockOidcAuthorizePage({ enabled: true, outputDirectory: 'dist', config }),
+      ],
+      server: { host: '127.0.0.1', port: 0 },
+    });
+
+    try {
+      await server.listen();
+      const address = server.httpServer?.address();
+      if (!address || typeof address === 'string') {
+        throw new Error('The Vite mock authorize test server did not start');
+      }
+      const response = await get(`http://127.0.0.1:${address.port}/authorize`);
+
+      expect(response.body).not.toContain('</script><script>alert(1)');
+      expect(response.body).toContain('\\u003c/script>');
+    } finally {
+      await server.close();
+    }
   });
 });

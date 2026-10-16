@@ -1,0 +1,165 @@
+:root {
+  color-scheme: light dark;
+  --mock-oidc-background: #f8fafc;
+  --mock-oidc-surface: #ffffff;
+  --mock-oidc-text: #0f172a;
+  --mock-oidc-muted: #475569;
+  --mock-oidc-border: #cbd5e1;
+  --mock-oidc-accent: #1d4ed8;
+  --mock-oidc-accent-hover: #1e40af;
+  --mock-oidc-error: #dc2626;
+  font-family:
+    Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mock-oidc-background: #0f172a;
+    --mock-oidc-surface: #1e293b;
+    --mock-oidc-text: #f1f5f9;
+    --mock-oidc-muted: #94a3b8;
+    --mock-oidc-border: #334155;
+    --mock-oidc-accent: #3b82f6;
+    --mock-oidc-accent-hover: #2563eb;
+    --mock-oidc-error: #f87171;
+  }
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--mock-oidc-background);
+  color: var(--mock-oidc-text);
+}
+
+.mock-oidc {
+  box-sizing: border-box;
+  width: min(100%, 36rem);
+  padding: 2rem 1rem;
+}
+
+.mock-oidc h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  text-align: center;
+}
+
+.mock-oidc p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.mock-oidc-intro {
+  text-align: center;
+  color: var(--mock-oidc-muted);
+}
+
+.mock-oidc-form {
+  display: grid;
+  gap: 0;
+}
+
+.mock-oidc-field {
+  display: grid;
+  gap: 0.375rem;
+  margin-top: 1.25rem;
+}
+
+.mock-oidc-field-checkbox {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.mock-oidc-field-checkbox label {
+  order: 2;
+}
+
+.mock-oidc-field-checkbox > p {
+  grid-column: 1 / -1;
+}
+
+.mock-oidc-field > label,
+.mock-oidc-label {
+  font-weight: 600;
+}
+
+.mock-oidc input:not([type='checkbox']),
+.mock-oidc select,
+.mock-oidc button {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--mock-oidc-border);
+  border-radius: 0.375rem;
+  background: var(--mock-oidc-surface);
+  color: inherit;
+  font: inherit;
+}
+
+.mock-oidc :is(input, select)[aria-invalid='true'] {
+  border-color: var(--mock-oidc-error);
+}
+
+.mock-oidc-options {
+  display: grid;
+  gap: 0.375rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--mock-oidc-border);
+  border-radius: 0.375rem;
+  background: var(--mock-oidc-surface);
+}
+
+.mock-oidc-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.mock-oidc-object {
+  margin: 1.25rem 0 0;
+  padding: 0 0.75rem 0.75rem;
+  border: 1px solid var(--mock-oidc-border);
+  border-radius: 0.375rem;
+}
+
+.mock-oidc-object legend {
+  padding: 0 0.25rem;
+  font-weight: 600;
+}
+
+.mock-oidc-array-item {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.mock-oidc-description {
+  color: var(--mock-oidc-muted);
+  font-size: 0.875rem;
+}
+
+.mock-oidc .mock-oidc-submit {
+  margin-top: 1.5rem;
+  border-color: var(--mock-oidc-accent);
+  background: var(--mock-oidc-accent);
+  color: white;
+  cursor: pointer;
+}
+
+.mock-oidc .mock-oidc-submit:hover {
+  background: var(--mock-oidc-accent-hover);
+}
+
+.mock-oidc .mock-oidc-secondary {
+  margin-top: 0.5rem;
+  cursor: pointer;
+}
+
+.mock-oidc-error {
+  color: var(--mock-oidc-error);
+  font-size: 0.875rem;
+}

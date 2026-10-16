@@ -1,68 +1,52 @@
-import type { MockOidcConfigInput } from './config.js';
-import { getMockOidcIdentity } from './identity.js';
+import type { MockOidcClaimsSchema, MockOidcConfig } from './config.js';
+import { getMockOidcIdentity, type MockOidcIdentity } from './identity.js';
 
 export const mockOidcSubjectStorageKey = 'mock.oidc.subject';
 export const mockOidcClaimsStorageKey = 'mock.oidc.claims';
+
+/**
+ * Returns the subject selected on the authorize page, or `undefined` when no
+ * mock sign-in happened in this browser session.
+ */
+export function getStoredMockOidcSubject(browserWindow: Window) {
+  return (
+    browserWindow.sessionStorage.getItem(mockOidcSubjectStorageKey) ?? undefined
+  );
+}
 
 export function getMockOidcSubjectFromWindow(
   browserWindow: Window,
   defaultSubject: string,
 ) {
-  const storedSubject = browserWindow.sessionStorage.getItem(
-    mockOidcSubjectStorageKey,
-  );
-
-  if (storedSubject !== null) {
-    return storedSubject;
-  }
-
-  browserWindow.sessionStorage.setItem(
-    mockOidcSubjectStorageKey,
-    defaultSubject,
-  );
-
-  return defaultSubject;
+  return getStoredMockOidcSubject(browserWindow) ?? defaultSubject;
 }
 
 export function setMockOidcSubjectInWindow(
   browserWindow: Window,
   subject: string,
 ) {
+  if (subject.trim().length === 0) {
+    throw new Error('The mock OIDC subject must not be empty');
+  }
+
   browserWindow.sessionStorage.setItem(mockOidcSubjectStorageKey, subject);
 }
 
-function validateClaimSelections(
+function assertClaimsObject(
   claims: unknown,
-): Record<string, string[]> {
+): asserts claims is Record<string, unknown> {
   if (typeof claims !== 'object' || claims === null || Array.isArray(claims)) {
     throw new Error('Mock OIDC claim selection must be an object');
   }
-
-  const validatedClaims: Record<string, string[]> = {};
-
-  for (const [claim, values] of Object.entries(claims)) {
-    if (
-      !Array.isArray(values) ||
-      !values.every(
-        (value): value is string =>
-          typeof value === 'string' && value.length > 0,
-      ) ||
-      new Set(values).size !== values.length
-    ) {
-      throw new Error(
-        `Mock OIDC claim selection "${claim}" must be an array of unique non-empty strings`,
-      );
-    }
-
-    validatedClaims[claim] = [...values];
-  }
-
-  return validatedClaims;
 }
 
+/**
+ * Returns the raw claims stored by the authorize page. They are validated
+ * against the claims schema by {@link getMockOidcIdentityFromWindow}.
+ */
 export function getMockOidcClaimsFromWindow(
   browserWindow: Window,
-): Record<string, string[]> | undefined {
+): Record<string, unknown> | undefined {
   const storedClaims = browserWindow.sessionStorage.getItem(
     mockOidcClaimsStorageKey,
   );
@@ -71,31 +55,57 @@ export function getMockOidcClaimsFromWindow(
     return undefined;
   }
 
-  return validateClaimSelections(JSON.parse(storedClaims));
+  const claims: unknown = JSON.parse(storedClaims);
+  assertClaimsObject(claims);
+
+  return claims;
 }
 
 export function setMockOidcClaimsInWindow(
   browserWindow: Window,
-  claims: Readonly<Record<string, readonly string[]>>,
+  claims: Readonly<Record<string, unknown>>,
 ) {
-  const validatedClaims = validateClaimSelections(claims);
+  assertClaimsObject(claims);
 
   browserWindow.sessionStorage.setItem(
     mockOidcClaimsStorageKey,
-    JSON.stringify(validatedClaims),
+    JSON.stringify(claims),
   );
 }
 
-export function getMockOidcIdentityFromWindow(
+/** Ends the mock sign-in session in this browser session. */
+export function clearMockOidcSessionInWindow(browserWindow: Window) {
+  browserWindow.sessionStorage.removeItem(mockOidcSubjectStorageKey);
+  browserWindow.sessionStorage.removeItem(mockOidcClaimsStorageKey);
+}
+
+/**
+ * Resolves the identity selected on the authorize page. Stored claims replace
+ * the selected user's defaults and are validated with the claims schema.
+ */
+export function getMockOidcIdentityFromWindow<
+  TClaims extends MockOidcClaimsSchema,
+>(
   browserWindow: Window,
-  config: MockOidcConfigInput,
-) {
+  config: MockOidcConfig<TClaims>,
+): MockOidcIdentity<TClaims> {
   const subject = getMockOidcSubjectFromWindow(
     browserWindow,
     config.defaultSubject,
   );
+  const storedClaims = getMockOidcClaimsFromWindow(browserWindow);
 
-  return getMockOidcIdentity(config, subject, {
-    claims: getMockOidcClaimsFromWindow(browserWindow),
-  });
+  if (storedClaims === undefined) {
+    return getMockOidcIdentity(config, subject);
+  }
+
+  const claims = config.claims.safeParse(storedClaims);
+  if (!claims.success) {
+    throw new Error(
+      `Invalid mock OIDC claims in session storage: ${claims.error.message}`,
+      { cause: claims.error },
+    );
+  }
+
+  return { subject, claims: claims.data as MockOidcIdentity<TClaims>['claims'] };
 }

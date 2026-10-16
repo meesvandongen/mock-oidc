@@ -1,3 +1,4 @@
+export * from './authorization.js';
 export * from './config.js';
 export * from './identity.js';
 export * from './oidc-handlers.js';

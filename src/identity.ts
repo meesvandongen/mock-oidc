@@ -1,54 +1,49 @@
-import type { MockOidcConfigInput } from './config.js';
+import type { z } from 'zod';
+import type { MockOidcClaimsSchema, MockOidcConfig } from './config.js';
 
-export type MockOidcIdentity = {
+export type MockOidcIdentity<
+  TClaims extends MockOidcClaimsSchema = MockOidcClaimsSchema,
+> = {
   subject: string;
-  claims: Record<string, string[]>;
+  claims: z.output<TClaims>;
 };
 
-export type MockOidcIdentityOverrides = {
-  claims?: Readonly<Record<string, readonly string[]>>;
+export type MockOidcIdentityOverrides<TClaims extends MockOidcClaimsSchema> = {
+  /**
+   * Claim values merged over the configured user's defaults before they are
+   * validated with the claims schema.
+   */
+  claims?: Partial<z.input<TClaims>>;
 };
 
-export function getMockOidcIdentity(
-  config: MockOidcConfigInput,
-  subject = config.defaultSubject,
-  overrides: MockOidcIdentityOverrides = {},
-): MockOidcIdentity {
+/**
+ * Resolves the identity for a subject. Configured users provide default
+ * claims; other subjects must supply every required claim as an override.
+ */
+export function getMockOidcIdentity<TClaims extends MockOidcClaimsSchema>(
+  config: MockOidcConfig<TClaims>,
+  subject: string = config.defaultSubject,
+  overrides: MockOidcIdentityOverrides<TClaims> = {},
+): MockOidcIdentity<TClaims> {
   const user = config.users.find((candidate) => candidate.subject === subject);
-  const selectors = config.claimSelectors ?? [];
-  const selectorClaims = new Set(selectors.map((selector) => selector.claim));
-  const unknownClaims = Object.keys(overrides.claims ?? {}).filter(
-    (claim) => !selectorClaims.has(claim),
-  );
+  const claims = config.claims.safeParse({
+    ...user?.claims,
+    ...overrides.claims,
+  });
 
-  if (unknownClaims.length > 0) {
+  if (!claims.success) {
     throw new Error(
-      `Mock OIDC claims are not configured as selectors: ${unknownClaims.join(', ')}`,
+      `Invalid mock OIDC claims for subject "${subject}": ${claims.error.message}`,
+      { cause: claims.error },
     );
   }
 
-  const claims: Record<string, string[]> = {};
+  return { subject, claims: claims.data as z.output<TClaims> };
+}
 
-  for (const selector of selectors) {
-    const selectedValues =
-      overrides.claims?.[selector.claim] ??
-      user?.claims?.[selector.claim] ??
-      [];
-    const unavailableValues = selectedValues.filter(
-      (value) => !selector.options.includes(value),
-    );
-
-    if (
-      new Set(selectedValues).size !== selectedValues.length ||
-      unavailableValues.length > 0
-    ) {
-      throw new Error(
-        `Mock OIDC claim "${selector.claim}" contains duplicate or unconfigured values for subject "${subject}"`,
-      );
-    }
-
-    claims[selector.claim] = [...selectedValues];
-  }
-
-  return { subject, claims };
+/** Builds standard OIDC userinfo claims from an identity. */
+export function getMockOidcUserInfo<TClaims extends MockOidcClaimsSchema>(
+  identity: MockOidcIdentity<TClaims>,
+): z.output<TClaims> & { sub: string } {
+  return { ...identity.claims, sub: identity.subject };
 }

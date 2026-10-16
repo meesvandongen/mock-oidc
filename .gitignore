@@ -1,3 +1,8 @@
 coverage/
 dist/
 node_modules/
+src/authorize-page/bundle.generated.ts
+test-results/
+playwright-report/
+__screenshots__/
+.vitest-attachments/
