@@ -134,26 +134,20 @@ endpoints:
 ```ts
 import { defineNetworkFixture, type NetworkFixture } from '@msw/playwright';
 import { test as base } from '@playwright/test';
-import { getMockOidcIdentity, type MockOidcIdentity } from '@mvd/mock-oidc';
 import {
   createMockOidcPlaywrightAdapter,
   type MockOidcPlaywrightAdapter,
 } from '@mvd/mock-oidc/playwright';
 
-type Claims = typeof mockOidcConfig.claims;
-
 export const test = base.extend<{
-  identity: MockOidcIdentity<Claims>;
-  mockOidc: MockOidcPlaywrightAdapter<Claims>;
+  mockOidc: MockOidcPlaywrightAdapter<typeof mockOidcConfig.claims>;
   network: NetworkFixture;
 }>({
-  identity: [getMockOidcIdentity(mockOidcConfig, 'demo-user'), { option: true }],
-  mockOidc: async ({ baseURL, context, identity }, use) => {
+  mockOidc: async ({ baseURL, context }, use) => {
     const mockOidc = createMockOidcPlaywrightAdapter({
       config: mockOidcConfig,
       issuerUrl: baseURL!,
       clientId: 'my-app',
-      identity,
     });
     await mockOidc.route(context);
     await use(mockOidc);
@@ -170,23 +164,22 @@ export const test = base.extend<{
 });
 ```
 
-```ts
-test.use({
-  identity: getMockOidcIdentity(mockOidcConfig, 'demo-user', {
-    claims: { permissions: ['app:write'] },
-  }),
-});
+The adapter signs in `config.defaultSubject` unless you pass `subject` (and
+optionally `claims`). Tests pick another identity with `setIdentity`, which
+applies to the next sign-in and token request:
 
+```ts
 test('shows the editor', async ({ page, mockOidc }) => {
+  mockOidc.setIdentity('demo-user', { claims: { permissions: ['app:write'] } });
+
   await page.goto('/');
   await page.getByRole('button', { name: 'Sign in' }).click();
-  // mockOidc.setIdentity(...) switches the identity for later sign-ins.
 });
 ```
 
-`getMockOidcIdentity` merges overrides over the user's defaults and validates
-the result with the claims schema. Pass `signedIn: true` to let `prompt=none`
-requests succeed before an interactive sign-in.
+Claim overrides are merged over the user's configured defaults and validated
+with the claims schema. Pass `signedIn: true` to let `prompt=none` requests
+succeed before an interactive sign-in.
 
 ## Development
 
