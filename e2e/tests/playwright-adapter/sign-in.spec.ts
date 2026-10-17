@@ -25,7 +25,11 @@ for (const library of libraries) {
     test.describe('with an overridden identity', () => {
       test.beforeEach(({ mockOidc }) => {
         mockOidc.setIdentity('bob', {
-          claims: { roles: ['admin'], department: 'sales' },
+          claims: {
+            roles: ['admin'],
+            department: 'sales',
+            tenants: [{ id: 'initech', permissions: ['billing'] }],
+          },
         });
       });
 
@@ -38,6 +42,8 @@ for (const library of libraries) {
           name: 'Bob Example',
           roles: ['admin'],
           department: 'sales',
+          address: { locality: 'Antwerp' },
+          tenants: [{ id: 'initech', permissions: ['billing'] }],
         });
       });
     });

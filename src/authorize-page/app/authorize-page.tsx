@@ -1,5 +1,12 @@
 import { AutoForm } from '@autoform/react/react-hook-form';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import {
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { useFormContext } from 'react-hook-form';
 import {
   createMockOidcAuthorizationCode,
   createMockOidcAuthorizationResponseUrl,
@@ -82,6 +89,23 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Fills the form with the selected values while keeping the schema defaults
+ * as the form's default values. React Hook Form gives fields without a value
+ * the default value at the same path, so with the selection as defaults an
+ * added array item, or one that moved up after a removal, would show the
+ * values of the selection's item at that index.
+ */
+function SelectedValues({ values }: { values: FormValues }) {
+  const { reset } = useFormContext<FormValues>();
+
+  useLayoutEffect(() => {
+    reset(values, { keepDefaultValues: true });
+  }, [reset, values]);
+
+  return null;
+}
+
 type PageProps = {
   data: MockOidcPageData;
   request: MockOidcAuthorizationRequest;
@@ -158,11 +182,11 @@ function LoginForm({ data, request, navigate }: PageProps) {
       <AutoForm<FormValues>
         key={formKey}
         schema={schema}
-        defaultValues={selection.values}
         onSubmit={signIn}
         uiComponents={uiComponents}
         formComponents={formComponents}
       >
+        <SelectedValues values={selection.values} />
         <button type="submit" className="mock-oidc-submit">
           Log in
         </button>

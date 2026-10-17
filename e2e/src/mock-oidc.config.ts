@@ -17,6 +17,27 @@ export const mockOidcConfig = defineMockOidcConfig({
       .optional()
       .meta({ title: 'Department' }),
     email_verified: z.boolean().default(true).meta({ title: 'E-mail verified' }),
+    // The standard OIDC address claim: a nested object.
+    address: z
+      .object({
+        street_address: z.string().min(1).meta({ title: 'Street address' }),
+        locality: z.string().min(1).meta({ title: 'City' }),
+        country: z.enum(['NL', 'BE', 'DE']).meta({ title: 'Country' }),
+      })
+      .meta({ title: 'Address' }),
+    // An array of objects, each with an array of enum values.
+    tenants: z
+      .array(
+        z.object({
+          id: z.string().min(1).meta({ title: 'Tenant ID' }),
+          permissions: z
+            .array(z.enum(['read', 'write', 'billing']))
+            .min(1)
+            .meta({ title: 'Permissions' }),
+        }),
+      )
+      .default([])
+      .meta({ title: 'Tenants', description: 'Tenants the user can access' }),
   }),
   users: [
     {
@@ -27,6 +48,12 @@ export const mockOidcConfig = defineMockOidcConfig({
         email: 'alice@example.com',
         roles: ['reader'],
         department: 'support',
+        address: {
+          street_address: 'Oudegracht 1',
+          locality: 'Utrecht',
+          country: 'NL',
+        },
+        tenants: [{ id: 'acme', permissions: ['read'] }],
       },
     },
     {
@@ -36,6 +63,15 @@ export const mockOidcConfig = defineMockOidcConfig({
         name: 'Bob Example',
         email: 'bob@example.com',
         roles: ['editor', 'admin'],
+        address: {
+          street_address: 'Grote Markt 1',
+          locality: 'Antwerp',
+          country: 'BE',
+        },
+        tenants: [
+          { id: 'acme', permissions: ['read', 'write'] },
+          { id: 'globex', permissions: ['billing'] },
+        ],
       },
     },
   ],

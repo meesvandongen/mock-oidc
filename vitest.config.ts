@@ -27,6 +27,7 @@ export default defineConfig({
             'react',
             'react-dom/client',
             'react/jsx-dev-runtime',
+            'react-hook-form',
           ],
         },
         test: {

@@ -55,6 +55,43 @@ export const mockOidcConfig = defineMockOidcConfig({
 The subject is not part of the claims schema; the reserved claims `sub`,
 `iss`, `aud`, `exp`, `iat`, `nbf`, `jti` and `nonce` are rejected.
 
+### Nested claims
+
+Claims can be nested to any depth: objects, arrays of objects, and arrays
+inside those. They end up unchanged in the ID token and the userinfo
+response, and the authorize page renders them as nested fieldsets.
+
+```ts
+claims: z.object({
+  // The standard OIDC address claim.
+  address: z
+    .object({
+      street_address: z.string().min(1).meta({ title: 'Street address' }),
+      locality: z.string().min(1).meta({ title: 'City' }),
+      country: z.enum(['NL', 'BE', 'DE']).meta({ title: 'Country' }),
+    })
+    .meta({ title: 'Address' }),
+  // An array of objects with an array of enum values in every item.
+  tenants: z
+    .array(
+      z.object({
+        id: z.string().min(1).meta({ title: 'Tenant ID' }),
+        permissions: z
+          .array(z.enum(['read', 'write', 'billing']))
+          .min(1)
+          .meta({ title: 'Permissions' }),
+      }),
+    )
+    .default([])
+    .meta({ title: 'Tenants', description: 'Tenants the user can access' }),
+  // Arrays of arrays work as well.
+  group_paths: z.array(z.array(z.string())).default([]),
+}),
+```
+
+Validation errors of users' preset claims name the full path, e.g.
+`users.0.claims.tenants.1.permissions.0`.
+
 ## Development: Vite plugin and MSW
 
 ```ts
@@ -92,8 +129,11 @@ JSON Schema and turned back into a zod schema in the browser:
 | `z.array(z.enum([...]))`    | checkbox group           |
 | `z.array(...)`              | repeatable list          |
 | `z.object(...)`             | nested fieldset          |
+| `z.array(z.object(...))`    | repeatable fieldsets     |
 
-`.meta({ title, description })` provides labels and help texts. Refinements
+`.meta({ title, description })` provides labels and help texts, also for
+nested objects and arrays. Array items are labelled after their array
+("Tenants item"), including untitled ones. Refinements
 and transforms cannot be represented as JSON Schema; they are not checked by
 the form, but they are applied when the MSW handlers read the identity.
 
@@ -178,7 +218,16 @@ test('shows the editor', async ({ page, mockOidc }) => {
 ```
 
 Claim overrides are merged over the user's configured defaults and validated
-with the claims schema. Pass `signedIn: true` to let `prompt=none` requests
+with the claims schema. The merge is one level deep: an overridden nested
+claim, such as `tenants` or `address`, replaces the configured value as a
+whole, so it must be complete:
+
+```ts
+mockOidc.setIdentity('demo-user', {
+  claims: { tenants: [{ id: 'initech', permissions: ['billing'] }] },
+});
+```
+ Pass `signedIn: true` to let `prompt=none` requests
 succeed before an interactive sign-in.
 
 ## Development

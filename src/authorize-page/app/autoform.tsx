@@ -30,17 +30,23 @@ type JsonSchema = {
 /**
  * Adds the JSON Schema `title`/`description` as AutoForm labels and renders
  * arrays of enum values as a checkbox group instead of a repeatable list.
+ * `fallbackLabel` labels untitled array items, which AutoForm keys by index.
  */
-function enhanceField(field: ParsedField, json: JsonSchema | undefined): ParsedField {
+function enhanceField(
+  field: ParsedField,
+  json: JsonSchema | undefined,
+  fallbackLabel?: string,
+): ParsedField {
   if (!json) {
     return field;
   }
 
+  const label = json.title ?? fallbackLabel;
   const enhanced: ParsedField = {
     ...field,
     fieldConfig: {
       ...field.fieldConfig,
-      ...(json.title === undefined ? {} : { label: json.title }),
+      ...(label === undefined ? {} : { label }),
       ...(json.description === undefined ? {} : { description: json.description }),
     },
   };
@@ -61,16 +67,11 @@ function enhanceField(field: ParsedField, json: JsonSchema | undefined): ParsedF
   }
 
   if (field.type === 'array' && field.schema?.[0]) {
-    const item = enhanceField(field.schema[0], json.items);
     // AutoForm labels array items by their index, which renders as no label.
+    const itemLabel = `${label ?? field.key} item`;
+    const item = enhanceField(field.schema[0], json.items, itemLabel);
     enhanced.schema = [
-      {
-        ...item,
-        fieldConfig: {
-          label: `${json.title ?? field.key} item`,
-          ...item.fieldConfig,
-        },
-      },
+      { ...item, fieldConfig: { label: itemLabel, ...item.fieldConfig } },
     ];
   }
 
@@ -284,19 +285,26 @@ function FieldWrapper({ label, error, children, id, parsedField }: FieldWrapperP
   );
 }
 
-function ObjectWrapper({ label, children }: ObjectWrapperProps) {
+function GroupDescription({ parsedField }: { parsedField: ParsedField }) {
+  const description = parsedField.fieldConfig?.description;
+  return description ? <p className="mock-oidc-description">{description}</p> : null;
+}
+
+function ObjectWrapper({ label, children, parsedField }: ObjectWrapperProps) {
   return (
     <fieldset className="mock-oidc-object">
       <legend>{label}</legend>
+      <GroupDescription parsedField={parsedField} />
       {children}
     </fieldset>
   );
 }
 
-function ArrayWrapper({ label, children, onAddItem }: ArrayWrapperProps) {
+function ArrayWrapper({ label, children, onAddItem, parsedField }: ArrayWrapperProps) {
   return (
     <fieldset className="mock-oidc-object">
       <legend>{label}</legend>
+      <GroupDescription parsedField={parsedField} />
       {children}
       <button type="button" className="mock-oidc-secondary" onClick={onAddItem}>
         Add

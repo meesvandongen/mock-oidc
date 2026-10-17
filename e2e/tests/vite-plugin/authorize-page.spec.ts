@@ -36,6 +36,48 @@ test('validates the claims with the zod schema before signing in', async ({ page
   await expect(page).toHaveURL(/\/callback\?code=mock-oidc\.[^&]+&state=test-state$/);
 });
 
+test('edits nested objects and arrays of objects', async ({ page, authorizeUrl }) => {
+  await page.goto(authorizeUrl({}));
+  await page.getByLabel('User').selectOption({ label: 'Bob (editor, admin)' });
+
+  await page.getByRole('group', { name: 'Address' }).getByLabel('City').fill('Ghent');
+
+  const tenantList = page.getByRole('group', { name: 'Tenants', exact: true });
+  const tenants = page.getByRole('group', { name: 'Tenants item', exact: true });
+  await expect(tenantList.getByText('Tenants the user can access')).toBeVisible();
+  await expect(tenants).toHaveCount(2);
+
+  // The remaining tenant moves up with its own values, and a new tenant
+  // starts empty instead of with the removed tenant's values.
+  await tenantList.getByRole('button', { name: 'Remove' }).first().click();
+  await expect(tenants.first().getByLabel('Tenant ID')).toHaveValue('globex');
+  await tenantList.getByRole('button', { name: 'Add' }).click();
+  await expect(tenants.nth(1).getByLabel('Tenant ID')).toHaveValue('');
+
+  // A tenant without permissions is rejected by the zod schema.
+  await tenants.nth(1).getByLabel('Tenant ID').fill('initech');
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await expect(tenants.nth(1).getByRole('alert')).toBeVisible();
+
+  const permissions = tenants.nth(1).getByRole('group', { name: 'Permissions' });
+  await permissions.getByLabel('read').check();
+  await permissions.getByLabel('write').check();
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await expect(page).toHaveURL(/\/callback\?code=/);
+
+  expect(
+    await page.evaluate(() =>
+      JSON.parse(sessionStorage.getItem('mock.oidc.claims') ?? 'null'),
+    ),
+  ).toMatchObject({
+    address: { street_address: 'Grote Markt 1', locality: 'Ghent', country: 'BE' },
+    tenants: [
+      { id: 'globex', permissions: ['billing'] },
+      { id: 'initech', permissions: ['read', 'write'] },
+    ],
+  });
+});
+
 test('supports custom subjects', async ({ page, authorizeUrl }) => {
   await page.goto(authorizeUrl({}));
   await page.getByLabel('User').selectOption({ label: 'Custom user' });

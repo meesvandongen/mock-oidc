@@ -156,4 +156,39 @@ describe('createOidcHandlers', () => {
     expect(status).toBe(200);
     expect(body).toMatchObject({ token_type: 'Bearer', expires_in: 30 });
   });
+
+  it('keeps nested claims intact in the ID token and userinfo', async () => {
+    const userInfo = {
+      sub: 'carol',
+      organization: { name: 'Acme', address: { city: 'Utrecht', country: 'NL' } },
+      memberships: [
+        { team: 'platform', roles: ['lead'], projects: [{ key: 'API', archived: false }] },
+        { team: 'support', roles: ['member'], projects: [] },
+      ],
+      group_paths: [['acme', 'engineering']],
+    };
+    const nestedHandlers = createOidcHandlers({
+      issuerUrl,
+      clientId: 'test-client',
+      getUserInfo: () => userInfo,
+    });
+    const nestedRequest = async (url: string, init?: RequestInit) =>
+      (await getResponse(nestedHandlers, new Request(url, init)))?.json();
+
+    const tokens = (await nestedRequest(`${issuerUrl}/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: encodeMockOidcAuthorizationCode({}),
+      }),
+    })) as { id_token: string };
+    const { payload } = await jwtVerify(
+      tokens.id_token,
+      createLocalJWKSet((await nestedRequest(`${issuerUrl}/jwks`)) as JSONWebKeySet),
+    );
+
+    expect(payload).toMatchObject(userInfo);
+    await expect(nestedRequest(`${issuerUrl}/userinfo`)).resolves.toEqual(userInfo);
+  });
 });
