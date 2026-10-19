@@ -44,6 +44,12 @@ export default defineConfig({
       testDir: 'tests/playwright-adapter',
       use: { baseURL: playwrightServerUrl },
     },
+    {
+      // Builds the app for production, without a browser, and checks that
+      // the mock provider is left out.
+      name: 'production-build',
+      testDir: 'tests/production-build',
+    },
   ],
   webServer: [
     {

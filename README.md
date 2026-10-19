@@ -163,6 +163,30 @@ await worker.start({ onUnhandledRequest: 'bypass' });
 The selected subject and claims are kept in `sessionStorage`
 (`mock.oidc.subject` and `mock.oidc.claims`).
 
+### Production builds
+
+To keep the mock provider out of production builds, enable the plugin only
+in the modes that need it, and load the worker, the handlers and the
+mock configuration with a dynamic import behind a build-time condition:
+
+```ts
+// mocks.ts: the only module that imports the worker setup.
+export async function enableMocking() {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
+  const { startMockOidcWorker } = await import('./mock-oidc-worker');
+  await startMockOidcWorker();
+}
+```
+
+Static imports of the handlers or of the configuration from the app's entry
+modules are not enough: the zod schemas in the configuration are not
+removed as dead code. The e2e suite builds the example app in production
+mode and checks that no module of `@mvd/mock-oidc`, jose, MSW or the claims
+configuration ends up in it.
+
 ## Playwright
 
 The adapter keeps the identity in the test process and answers the
@@ -257,6 +281,9 @@ is tested in three Playwright projects:
   build output;
 - `playwright-adapter` runs the app without the plugin and worker
   (`vite --mode playwright`) and mocks the provider from the test process.
+
+The `production-build` project builds the app in production mode and checks
+that it contains nothing of the mock provider.
 
 The same static build is published to GitHub Pages by
 `.github/workflows/pages.yml` on every push to `main`. Build it locally with
