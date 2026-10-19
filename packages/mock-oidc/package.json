@@ -1,0 +1,90 @@
+{
+  "name": "@mvd/mock-oidc",
+  "version": "0.1.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meesvandongen/mock-oidc.git",
+    "directory": "packages/mock-oidc"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
+    },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "import": "./dist/identity.js"
+    },
+    "./session": {
+      "types": "./dist/oidc-session.d.ts",
+      "import": "./dist/oidc-session.js"
+    },
+    "./playwright": {
+      "types": "./dist/playwright.d.ts",
+      "import": "./dist/playwright.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js"
+    },
+    "./authorization": {
+      "types": "./dist/authorization.d.ts",
+      "import": "./dist/authorization.js"
+    }
+  },
+  "scripts": {
+    "build": "pnpm build:authorize-page && tsdown",
+    "lint:publish": "publint --strict",
+    "build:authorize-page": "node scripts/build-authorize-page.ts",
+    "typecheck": "pnpm build:authorize-page && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.authorize-page.json && tsc -p tsconfig.scripts.json",
+    "pretest": "pnpm build:authorize-page",
+    "test": "vitest run",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "jose": "^6.2.3"
+  },
+  "peerDependencies": {
+    "msw": ">=2 <3",
+    "vite": ">=6 <9",
+    "zod": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@autoform/core": "^4.0.0",
+    "@autoform/react": "^5.0.0",
+    "@autoform/zod": "^6.0.0",
+    "@hookform/resolvers": "^5.9.1",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitest/browser-playwright": "4.1.11",
+    "msw": "^2.15.0",
+    "playwright": "^1.64.1",
+    "publint": "^0.3.25",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-hook-form": "^7.90.0",
+    "tsdown": "^0.23.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^4.1.11",
+    "zod": "^4.6.7"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,6 +1,6 @@
 packages:
-  - .
-  - e2e
+  - packages/*
+  - apps/*
 
 allowBuilds:
   '@axa-fr/oidc-client': false

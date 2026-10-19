@@ -22,13 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
-      # Node 24 ships npm 11, which trusted publishing needs; pnpm 10 hands the
-      # packed tarball to npm to publish.
       - uses: actions/setup-node@v7
         with:
           node-version: 24
       - run: pnpm install --frozen-lockfile
-      # `pnpm publish` runs the prepack script, which builds dist/.
+      # `pnpm publish` runs the prepack script, which builds dist/, and
+      # authenticates through trusted publishing itself.
       - uses: changesets/action@v2
         with:
           publish-script: pnpm changeset publish
