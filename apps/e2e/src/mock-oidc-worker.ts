@@ -1,5 +1,4 @@
 import { createOidcHandlers } from '@mvd/mock-oidc';
-import { getMockOidcUserInfo } from '@mvd/mock-oidc/identity';
 import { getMockOidcIdentityFromWindow } from '@mvd/mock-oidc/session';
 import { setupWorker } from 'msw/browser';
 import { issuerUrl, pageUrl } from './app-urls';
@@ -14,10 +13,8 @@ export async function startMockOidcWorker() {
     ...createOidcHandlers({
       issuerUrl,
       clientId,
-      authorizationEndpointPath: mockOidcConfig.authorizationEndpointPath,
-      endSessionEndpointPath: mockOidcConfig.endSessionEndpointPath,
-      getUserInfo: () =>
-        getMockOidcUserInfo(getMockOidcIdentityFromWindow(window, mockOidcConfig)),
+      config: mockOidcConfig,
+      getIdentity: () => getMockOidcIdentityFromWindow(window, mockOidcConfig),
     }),
   );
 

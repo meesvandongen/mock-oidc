@@ -1,26 +1,32 @@
-import { importJWK, SignJWT } from 'jose';
+import { importJWK, jwtVerify, SignJWT } from 'jose';
 import { type HttpHandler, HttpResponse, http } from 'msw';
 import {
   decodeMockOidcAuthorizationCode,
   verifyMockOidcCodeVerifier,
 } from './authorization.js';
-
-export type OidcClaims = Record<string, unknown> & {
-  sub: string;
-};
+import type {
+  MockOidcClaimsContext,
+  MockOidcClaimsSchema,
+  MockOidcConfig,
+} from './config.js';
+import type { MockOidcIdentity } from './identity.js';
 
 export type CreateOidcHandlersOptions<
-  TUserInfo extends OidcClaims,
-  TTokenClaims extends OidcClaims = TUserInfo,
+  TClaims extends MockOidcClaimsSchema = MockOidcClaimsSchema,
 > = {
   issuerUrl: string;
   /** Audience of issued tokens when the token request has no `client_id`. */
   clientId: string;
-  getUserInfo: () => TUserInfo | Promise<TUserInfo>;
-  getTokenClaims?: (userInfo: TUserInfo) => TTokenClaims;
+  /**
+   * Provides the endpoint paths, the access token audience and the claim
+   * mappings of the ID token, access token and userinfo response.
+   */
+  config: MockOidcConfig<TClaims>;
+  /** The identity that the token and userinfo endpoints answer for. */
+  getIdentity: () =>
+    | MockOidcIdentity<TClaims>
+    | Promise<MockOidcIdentity<TClaims>>;
   tokenLifetimeSeconds?: number;
-  authorizationEndpointPath?: string;
-  endSessionEndpointPath?: string;
   tokenEndpointPath?: string;
   userInfoEndpointPath?: string;
   jwksPath?: string;
@@ -55,6 +61,7 @@ const mockJwks = {
 } as const;
 
 const privateKeyPromise = importJWK(mockPrivateJwk, mockPrivateJwk.alg);
+const publicKeyPromise = importJWK(mockJwks.keys[0], mockPrivateJwk.alg);
 
 function joinIssuerPath(issuerUrl: string, endpointPath: string) {
   return `${issuerUrl}/${endpointPath.replace(/^\/+/, '')}`;
@@ -63,17 +70,16 @@ function joinIssuerPath(issuerUrl: string, endpointPath: string) {
 function createWellKnownConfiguration(
   issuerUrl: string,
   options: Pick<
-    CreateOidcHandlersOptions<OidcClaims>,
-    | 'authorizationEndpointPath'
-    | 'endSessionEndpointPath'
-    | 'tokenEndpointPath'
-    | 'userInfoEndpointPath'
-    | 'jwksPath'
-  >,
+    CreateOidcHandlersOptions,
+    'tokenEndpointPath' | 'userInfoEndpointPath' | 'jwksPath'
+  > & {
+    config: Pick<
+      MockOidcConfig,
+      'authorizationEndpointPath' | 'endSessionEndpointPath'
+    >;
+  },
 ) {
-  const authorizationEndpointPath =
-    options.authorizationEndpointPath ?? 'authorize';
-  const endSessionEndpointPath = options.endSessionEndpointPath ?? 'logout';
+  const { authorizationEndpointPath, endSessionEndpointPath } = options.config;
   const tokenEndpointPath = options.tokenEndpointPath ?? 'access_token';
   const userInfoEndpointPath = options.userInfoEndpointPath ?? 'userinfo';
   const jwksPath = options.jwksPath ?? 'jwks';
@@ -103,13 +109,13 @@ async function signJwt(
   payload: Record<string, unknown>,
   {
     issuerUrl,
-    clientId,
+    audience,
     tokenLifetimeSeconds,
     subject,
     tokenType,
   }: {
     issuerUrl: string;
-    clientId: string;
+    audience: string | string[];
     tokenLifetimeSeconds: number;
     subject: string;
     tokenType: 'JWT' | 'at+jwt';
@@ -125,7 +131,7 @@ async function signJwt(
       typ: tokenType,
     })
     .setIssuer(issuerUrl)
-    .setAudience(clientId)
+    .setAudience(audience)
     .setSubject(subject)
     .setIssuedAt(issuedAt)
     .setExpirationTime(issuedAt + tokenLifetimeSeconds)
@@ -133,11 +139,28 @@ async function signJwt(
     .sign(privateKey);
 }
 
-async function createTokenResponse<
-  TUserInfo extends OidcClaims,
-  TTokenClaims extends OidcClaims,
->(
-  options: CreateOidcHandlersOptions<TUserInfo, TTokenClaims>,
+/**
+ * Verifies an access token issued by the mock provider and returns its
+ * claims, or `undefined` when it is invalid or expired.
+ */
+async function verifyAccessToken(token: string, issuerUrl: string) {
+  try {
+    const { payload } = await jwtVerify(token, await publicKeyPromise, {
+      issuer: issuerUrl,
+      typ: 'at+jwt',
+    });
+    return payload;
+  } catch {
+    return undefined;
+  }
+}
+
+function splitScope(scope: string | undefined) {
+  return (scope ?? '').split(' ').filter(Boolean);
+}
+
+async function createTokenResponse<TClaims extends MockOidcClaimsSchema>(
+  options: CreateOidcHandlersOptions<TClaims>,
   {
     scope,
     nonce,
@@ -145,28 +168,47 @@ async function createTokenResponse<
   }: {
     scope: string | undefined;
     nonce: string | undefined;
-    clientId: string | undefined;
+    clientId: string;
   },
 ) {
+  const { config } = options;
   const tokenLifetimeSeconds = options.tokenLifetimeSeconds ?? 60 * 60;
-  const userInfo = await options.getUserInfo();
-  const tokenClaims = options.getTokenClaims?.(userInfo) ?? userInfo;
+  const identity = await options.getIdentity();
+  const context: MockOidcClaimsContext<TClaims> = {
+    subject: identity.subject,
+    claims: identity.claims,
+    scopes: splitScope(scope),
+    clientId,
+  };
 
   const [idToken, accessToken] = await Promise.all([
-    signJwt(nonce === undefined ? tokenClaims : { ...tokenClaims, nonce }, {
-      issuerUrl: options.issuerUrl,
-      clientId: clientId ?? options.clientId,
-      tokenLifetimeSeconds,
-      subject: tokenClaims.sub,
-      tokenType: 'JWT',
-    }),
-    signJwt(tokenClaims, {
-      issuerUrl: options.issuerUrl,
-      clientId: clientId ?? options.clientId,
-      tokenLifetimeSeconds,
-      subject: tokenClaims.sub,
-      tokenType: 'at+jwt',
-    }),
+    signJwt(
+      {
+        ...config.idTokenClaims(context),
+        ...(nonce === undefined ? {} : { nonce }),
+      },
+      {
+        issuerUrl: options.issuerUrl,
+        audience: clientId,
+        tokenLifetimeSeconds,
+        subject: identity.subject,
+        tokenType: 'JWT',
+      },
+    ),
+    signJwt(
+      {
+        ...(scope === undefined ? {} : { scope }),
+        client_id: clientId,
+        ...config.accessTokenClaims(context),
+      },
+      {
+        issuerUrl: options.issuerUrl,
+        audience: config.accessTokenAudience ?? clientId,
+        tokenLifetimeSeconds,
+        subject: identity.subject,
+        tokenType: 'at+jwt',
+      },
+    ),
   ]);
 
   return {
@@ -191,10 +233,21 @@ function tokenError(error: string, errorDescription: string) {
   );
 }
 
-export function createOidcHandlers<
-  TUserInfo extends OidcClaims,
-  TTokenClaims extends OidcClaims = TUserInfo,
->(options: CreateOidcHandlersOptions<TUserInfo, TTokenClaims>): HttpHandler[] {
+function userInfoError(errorDescription?: string) {
+  return new HttpResponse(null, {
+    status: 401,
+    headers: {
+      'WWW-Authenticate':
+        errorDescription === undefined
+          ? 'Bearer'
+          : `Bearer error="invalid_token", error_description="${errorDescription}"`,
+    },
+  });
+}
+
+export function createOidcHandlers<TClaims extends MockOidcClaimsSchema>(
+  options: CreateOidcHandlersOptions<TClaims>,
+): HttpHandler[] {
   const issuerUrl = options.issuerUrl.replace(/\/$/, '');
   const wellKnownUrl = `${issuerUrl}/.well-known/openid-configuration`;
   const tokenUrl = joinIssuerPath(
@@ -228,12 +281,21 @@ export function createOidcHandlers<
       const grantType = getParameter('grant_type') ?? 'authorization_code';
       const scope = getParameter('scope');
       // Public clients identify themselves in the token request.
-      const clientId = getParameter('client_id');
+      const clientId = getParameter('client_id') ?? options.clientId;
 
       if (grantType === 'refresh_token') {
+        // Refresh tokens are access tokens; they keep the granted scope.
+        const refreshToken = await verifyAccessToken(
+          getParameter('refresh_token') ?? '',
+          issuerUrl,
+        );
         return HttpResponse.json(
           await createTokenResponse(normalizedOptions, {
-            scope,
+            scope:
+              scope ??
+              (typeof refreshToken?.scope === 'string'
+                ? refreshToken.scope
+                : undefined),
             nonce: undefined,
             clientId,
           }),
@@ -256,15 +318,42 @@ export function createOidcHandlers<
 
       return HttpResponse.json(
         await createTokenResponse(normalizedOptions, {
-          scope,
+          scope: code.scope ?? scope,
           nonce: code.nonce,
           clientId,
         }),
         { headers: tokenResponseHeaders },
       );
     }),
-    http.get(userInfoUrl, async () => {
-      return HttpResponse.json(await options.getUserInfo());
+    http.get(userInfoUrl, async ({ request }) => {
+      const authorization = request.headers.get('Authorization');
+      if (authorization === null || !/^Bearer /i.test(authorization)) {
+        return userInfoError();
+      }
+
+      const accessToken = await verifyAccessToken(
+        authorization.slice('Bearer '.length).trim(),
+        issuerUrl,
+      );
+      if (accessToken === undefined) {
+        return userInfoError('The access token is invalid or expired');
+      }
+
+      const identity = await options.getIdentity();
+      return HttpResponse.json({
+        ...options.config.userInfoClaims({
+          subject: identity.subject,
+          claims: identity.claims,
+          scopes: splitScope(
+            typeof accessToken.scope === 'string' ? accessToken.scope : undefined,
+          ),
+          clientId:
+            typeof accessToken.client_id === 'string'
+              ? accessToken.client_id
+              : options.clientId,
+        }),
+        sub: identity.subject,
+      });
     }),
   ];
 }

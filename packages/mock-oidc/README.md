@@ -12,9 +12,10 @@ A mock OpenID Connect provider for single-page apps:
   the claims schema with [AutoForm](https://github.com/vantezzen/autoform),
 - a **Playwright** adapter that signs in a chosen identity without any UI.
 
-Authorization codes carry the request's `nonce` and PKCE challenge, so the
-token endpoint returns ID tokens with the right `nonce` and rejects
-mismatching `code_verifier`s. `prompt=none` returns `login_required` until the
+Authorization codes carry the request's `nonce`, `scope` and PKCE challenge,
+so the token endpoint returns ID tokens with the right `nonce` and rejects
+mismatching `code_verifier`s. The userinfo endpoint requires an access token
+issued by the mock provider. `prompt=none` returns `login_required` until the
 user has signed in, and the end session endpoint ends the mock session.
 
 ## Configure users
@@ -93,6 +94,50 @@ claims: z.object({
 Validation errors of users' preset claims name the full path, e.g.
 `users.0.claims.tenants.1.permissions.0`.
 
+### ID token, access token and userinfo
+
+By default the ID token, the access token and the userinfo response all carry
+every claim. Real providers rarely do that, so each of them can get its own
+mapping. The claims schema stays the one record of the user: whatever is
+edited on the authorize page or overridden in a test reaches every output that
+includes the claim.
+
+A mapping is either a list of claim names, or a function that builds the
+claims from the identity and the request:
+
+```ts
+defineMockOidcConfig({
+  claims: z.object({
+    name: z.string(),
+    email: z.email(),
+    permissions: z.array(z.enum(['app:read', 'app:write'])),
+    tenants: z.array(z.object({ id: z.string() })),
+  }),
+  idTokenClaims: ['name', 'email'],
+  userInfoClaims: ({ claims, scopes }) => ({
+    name: claims.name,
+    // Only with the email scope, as an OIDC provider would.
+    ...(scopes.includes('email') ? { email: claims.email } : {}),
+  }),
+  accessTokenClaims: ({ claims }) => ({
+    roles: claims.permissions,
+    tenant_ids: claims.tenants.map((tenant) => tenant.id),
+  }),
+  // The API that accepts the access tokens; the client ID by default.
+  accessTokenAudience: 'https://api.example.com',
+  users: [/* ... */],
+});
+```
+
+The functions receive `{ subject, claims, scopes, clientId }`: the identity,
+the granted scope values and the client the tokens are issued to. The userinfo
+endpoint reads the scope from the access token it is called with. Shared parts
+are plain functions, so reuse them across mappings.
+
+`sub`, `iss`, `aud`, `exp`, `iat`, `jti` and the ID token's `nonce` are always
+set by the provider. Access tokens also get `scope` and `client_id`, unless the
+mapping returns its own.
+
 ## Development: Vite plugin and MSW
 
 ```ts
@@ -144,7 +189,6 @@ in the build output, so use the app's base URL as issuer (the origin when
 
 ```ts
 import { createOidcHandlers } from '@mvd/mock-oidc';
-import { getMockOidcUserInfo } from '@mvd/mock-oidc/identity';
 import { getMockOidcIdentityFromWindow } from '@mvd/mock-oidc/session';
 import { setupWorker } from 'msw/browser';
 
@@ -152,10 +196,8 @@ const worker = setupWorker(
   ...createOidcHandlers({
     issuerUrl: new URL(import.meta.env.BASE_URL, location.origin).href.replace(/\/$/, ''),
     clientId: 'my-app',
-    authorizationEndpointPath: mockOidcConfig.authorizationEndpointPath,
-    endSessionEndpointPath: mockOidcConfig.endSessionEndpointPath,
-    getUserInfo: () =>
-      getMockOidcUserInfo(getMockOidcIdentityFromWindow(window, mockOidcConfig)),
+    config: mockOidcConfig,
+    getIdentity: () => getMockOidcIdentityFromWindow(window, mockOidcConfig),
   }),
 );
 await worker.start({ onUnhandledRequest: 'bypass' });

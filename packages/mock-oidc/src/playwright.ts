@@ -12,15 +12,13 @@ import {
 } from './config.js';
 import {
   getMockOidcIdentity,
-  getMockOidcUserInfo,
   type MockOidcIdentity,
   type MockOidcIdentityOverrides,
 } from './identity.js';
-import { createOidcHandlers, type OidcClaims } from './oidc-handlers.js';
+import { createOidcHandlers } from './oidc-handlers.js';
 
 export type CreateMockOidcPlaywrightAdapterOptions<
   TClaims extends MockOidcClaimsSchema,
-  TUserInfo extends OidcClaims,
 > = {
   config: MockOidcConfig<TClaims>;
   issuerUrl: string;
@@ -35,11 +33,6 @@ export type CreateMockOidcPlaywrightAdapterOptions<
    * with the claims schema.
    */
   claims?: MockOidcIdentityOverrides<TClaims>['claims'];
-  /**
-   * Builds the userinfo and token claims for the current identity.
-   * Defaults to the identity claims plus `sub`.
-   */
-  getUserInfo?: (identity: MockOidcIdentity<TClaims>) => TUserInfo;
   /**
    * Whether the identity already has a session at the mock provider, so
    * `prompt=none` requests succeed before an interactive sign-in.
@@ -100,11 +93,8 @@ function redirect(location: string) {
 
 export function createMockOidcPlaywrightAdapter<
   TClaims extends MockOidcClaimsSchema,
-  TUserInfo extends OidcClaims = ReturnType<
-    typeof getMockOidcUserInfo<TClaims>
-  >,
 >(
-  options: CreateMockOidcPlaywrightAdapterOptions<TClaims, TUserInfo>,
+  options: CreateMockOidcPlaywrightAdapterOptions<TClaims>,
 ): MockOidcPlaywrightAdapter<TClaims> {
   const { config } = options;
   const issuerUrl = options.issuerUrl.replace(/\/$/, '');
@@ -120,10 +110,6 @@ export function createMockOidcPlaywrightAdapter<
     issuerOrigin,
     ...config.allowedRedirectOrigins,
   ];
-  const getUserInfo =
-    options.getUserInfo ??
-    ((identity: MockOidcIdentity<TClaims>) =>
-      getMockOidcUserInfo(identity) as unknown as TUserInfo);
   let identity = getMockOidcIdentity(config, options.subject, {
     claims: options.claims,
   });
@@ -140,10 +126,9 @@ export function createMockOidcPlaywrightAdapter<
     handlers: createOidcHandlers({
       issuerUrl,
       clientId: options.clientId,
-      authorizationEndpointPath: config.authorizationEndpointPath,
-      endSessionEndpointPath: config.endSessionEndpointPath,
+      config,
       tokenLifetimeSeconds: options.tokenLifetimeSeconds,
-      getUserInfo: () => getUserInfo(identity),
+      getIdentity: () => identity,
     }),
     authorize(requestUrl) {
       assertPath(requestUrl, authorizationPath);
