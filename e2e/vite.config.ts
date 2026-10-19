@@ -23,10 +23,11 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    // In `playwright` mode the provider is mocked from the Playwright test
-    // process, so neither the authorize page nor the MSW worker is active.
+    // Only the dev server and the static demo serve the mock provider. In
+    // `playwright` mode it is mocked from the Playwright test process, and
+    // production builds contain nothing of it.
     mockOidcAuthorizePage({
-      enabled: mode !== 'playwright',
+      enabled: mode === 'development' || mode === 'static',
       outputDirectory: 'dist',
       config: mockOidcConfig,
     }),
