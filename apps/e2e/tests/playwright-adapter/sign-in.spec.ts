@@ -48,6 +48,30 @@ for (const library of libraries) {
       });
     });
 
+    test('issues access tokens with only the configured claims', async ({ page }) => {
+      await page.goto(library.path);
+      const tokenResponse = page.waitForResponse((response) =>
+        response.url().endsWith('/access_token'),
+      );
+      await page.getByRole('button', { name: 'Sign in' }).click();
+
+      const { access_token: accessToken } = (await (await tokenResponse).json()) as {
+        access_token: string;
+      };
+      const payload = JSON.parse(
+        Buffer.from(accessToken.split('.')[1] ?? '', 'base64url').toString(),
+      ) as Record<string, unknown>;
+
+      expect(payload).toMatchObject({
+        sub: 'alice',
+        scope: expect.stringContaining('openid'),
+        roles: ['reader'],
+        tenants: [{ id: 'acme', permissions: ['read'] }],
+      });
+      expect(payload).not.toHaveProperty('name');
+      await expect(page.getByTestId('subject')).toHaveText('alice');
+    });
+
     test('switches identities between sign-ins', async ({ page, mockOidc }) => {
       await page.goto(library.path);
       await page.getByRole('button', { name: 'Sign in' }).click();

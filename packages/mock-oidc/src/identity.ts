@@ -40,10 +40,3 @@ export function getMockOidcIdentity<TClaims extends MockOidcClaimsSchema>(
 
   return { subject, claims: claims.data as z.output<TClaims> };
 }
-
-/** Builds standard OIDC userinfo claims from an identity. */
-export function getMockOidcUserInfo<TClaims extends MockOidcClaimsSchema>(
-  identity: MockOidcIdentity<TClaims>,
-): z.output<TClaims> & { sub: string } {
-  return { ...identity.claims, sub: identity.subject };
-}

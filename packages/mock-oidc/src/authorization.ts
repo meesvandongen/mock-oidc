@@ -7,6 +7,7 @@ const authorizationCodePrefix = 'mock-oidc.';
 
 export type MockOidcAuthorizationCode = {
   nonce?: string;
+  scope?: string;
   codeChallenge?: string;
   codeChallengeMethod?: string;
 };
@@ -15,6 +16,7 @@ export type MockOidcAuthorizationRequest = {
   redirectUri: URL;
   state: string | undefined;
   nonce: string | undefined;
+  scope: string | undefined;
   prompt: string[];
   responseMode: 'query' | 'fragment';
   codeChallenge: string | undefined;
@@ -74,13 +76,12 @@ export function decodeMockOidcAuthorizationCode(
       return undefined;
     }
 
-    const { nonce, codeChallenge, codeChallengeMethod } = decoded as Record<
-      string,
-      unknown
-    >;
+    const { nonce, scope, codeChallenge, codeChallengeMethod } =
+      decoded as Record<string, unknown>;
 
     return {
       ...(typeof nonce === 'string' ? { nonce } : {}),
+      ...(typeof scope === 'string' ? { scope } : {}),
       ...(typeof codeChallenge === 'string' ? { codeChallenge } : {}),
       ...(typeof codeChallengeMethod === 'string'
         ? { codeChallengeMethod }
@@ -176,6 +177,7 @@ export function parseMockOidcAuthorizationRequest(
     ),
     state: params.get('state') ?? undefined,
     nonce: params.get('nonce') ?? undefined,
+    scope: params.get('scope') ?? undefined,
     prompt: (params.get('prompt') ?? '').split(' ').filter(Boolean),
     responseMode,
     codeChallenge: params.get('code_challenge') ?? undefined,
@@ -189,6 +191,7 @@ export function createMockOidcAuthorizationCode(
 ) {
   return encodeMockOidcAuthorizationCode({
     ...(request.nonce === undefined ? {} : { nonce: request.nonce }),
+    ...(request.scope === undefined ? {} : { scope: request.scope }),
     ...(request.codeChallenge === undefined
       ? {}
       : {

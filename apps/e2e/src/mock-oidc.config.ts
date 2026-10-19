@@ -39,6 +39,9 @@ export const mockOidcConfig = defineMockOidcConfig({
       .default([])
       .meta({ title: 'Tenants', description: 'Tenants the user can access' }),
   }),
+  // The ID token and userinfo carry every claim (the default); the access
+  // token only what an API needs to authorize requests.
+  accessTokenClaims: ['roles', 'tenants'],
   users: [
     {
       subject: 'alice',

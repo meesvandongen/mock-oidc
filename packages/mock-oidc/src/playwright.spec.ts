@@ -1,3 +1,5 @@
+import { decodeJwt } from 'jose';
+import { getResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { decodeMockOidcAuthorizationCode } from './authorization.js';
@@ -37,6 +39,7 @@ describe('createMockOidcPlaywrightAdapter', () => {
           redirect_uri: 'http://localhost:5173/callback?existing=1',
           state: 'state-1',
           nonce: 'nonce-1',
+          scope: 'openid profile',
           code_challenge: 'challenge',
           code_challenge_method: 'S256',
         }),
@@ -52,6 +55,7 @@ describe('createMockOidcPlaywrightAdapter', () => {
       decodeMockOidcAuthorizationCode(location.searchParams.get('code') ?? ''),
     ).toEqual({
       nonce: 'nonce-1',
+      scope: 'openid profile',
       codeChallenge: 'challenge',
       codeChallengeMethod: 'S256',
     });
@@ -190,6 +194,60 @@ describe('createMockOidcPlaywrightAdapter', () => {
     expect(adapter.identity).toEqual({
       subject: 'alice',
       claims: { name: 'Alicia' },
+    });
+  });
+
+  it('builds tokens and userinfo with the claim mappings of the config', async () => {
+    const adapter = createMockOidcPlaywrightAdapter({
+      config: defineMockOidcConfig({
+        defaultSubject: 'alice',
+        claims: z.object({ name: z.string(), roles: z.array(z.string()) }),
+        idTokenClaims: ['name'],
+        accessTokenClaims: ['roles'],
+        userInfoClaims: ({ claims, scopes }) => ({ name: claims.name, scopes }),
+        users: [
+          { subject: 'alice', label: 'Alice', claims: { name: 'Alice', roles: ['admin'] } },
+        ],
+      }),
+      issuerUrl,
+      clientId: 'test-client',
+    });
+    const location = new URL(
+      adapter.authorize(
+        authorizeUrl({ redirect_uri: `${issuerUrl}/cb`, scope: 'openid profile' }),
+      ),
+    );
+    const tokens = (await (
+      await getResponse(
+        adapter.handlers,
+        new Request(`${issuerUrl}/access_token`, {
+          method: 'POST',
+          body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: location.searchParams.get('code') ?? '',
+          }),
+        }),
+      )
+    )?.json()) as { id_token: string; access_token: string };
+    const userInfo = await getResponse(
+      adapter.handlers,
+      new Request(`${issuerUrl}/userinfo`, {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      }),
+    );
+
+    expect(decodeJwt(tokens.id_token)).toMatchObject({ sub: 'alice', name: 'Alice' });
+    expect(decodeJwt(tokens.id_token)).not.toHaveProperty('roles');
+    expect(decodeJwt(tokens.access_token)).toMatchObject({
+      sub: 'alice',
+      roles: ['admin'],
+      scope: 'openid profile',
+    });
+    expect(decodeJwt(tokens.access_token)).not.toHaveProperty('name');
+    await expect(userInfo?.json()).resolves.toEqual({
+      sub: 'alice',
+      name: 'Alice',
+      scopes: ['openid', 'profile'],
     });
   });
 

@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 import { defineMockOidcConfig } from './config.js';
-import { getMockOidcIdentity, getMockOidcUserInfo } from './identity.js';
+import { getMockOidcIdentity } from './identity.js';
 
 const claims = z.object({
   name: z.string().min(1),
@@ -69,12 +69,13 @@ describe('mock OIDC config', () => {
       'Invalid mock OIDC claims for subject "someone-else"',
     );
     expect(
-      getMockOidcUserInfo(
-        getMockOidcIdentity(config, 'someone-else', {
-          claims: { name: 'Someone' },
-        }),
-      ),
-    ).toEqual({ sub: 'someone-else', name: 'Someone', permissions: [], teams: [] });
+      getMockOidcIdentity(config, 'someone-else', {
+        claims: { name: 'Someone' },
+      }),
+    ).toEqual({
+      subject: 'someone-else',
+      claims: { name: 'Someone', permissions: [], teams: [] },
+    });
   });
 
   it('requires the default subject to be configured', () => {
@@ -136,6 +137,74 @@ describe('mock OIDC config', () => {
         users: [{ subject: 'app-user', label: 'Application user' }],
       }),
     ).toThrow('Mock OIDC claims must be a zod object schema');
+  });
+
+  it('includes all claims in every output by default', () => {
+    const config = createConfig();
+    const context = {
+      subject: 'app-user',
+      claims: config.users[0]!.claims,
+      scopes: ['openid'],
+      clientId: 'app',
+    };
+
+    expect(config.accessTokenAudience).toBeUndefined();
+    for (const mapping of [
+      config.idTokenClaims,
+      config.accessTokenClaims,
+      config.userInfoClaims,
+    ]) {
+      expect(mapping(context)).toEqual(config.users[0]!.claims);
+    }
+  });
+
+  it('turns claim name lists into mappings that pick those claims', () => {
+    const config = defineMockOidcConfig({
+      defaultSubject: 'app-user',
+      accessTokenAudience: ['https://api.example.com'],
+      claims: claims.extend({ team: z.string().optional() }),
+      idTokenClaims: ['name', 'team'],
+      userInfoClaims: ({ subject, claims, scopes }) => ({
+        name: `${claims.name} (${subject})`,
+        scopes,
+      }),
+      users: [{ subject: 'app-user', label: 'Application user', claims: { name: 'App User' } }],
+    });
+    const context = {
+      subject: 'app-user',
+      claims: config.users[0]!.claims,
+      scopes: ['openid'],
+      clientId: 'app',
+    };
+
+    expect(config.accessTokenAudience).toEqual(['https://api.example.com']);
+    // Undefined optional claims are left out.
+    expect(config.idTokenClaims(context)).toEqual({ name: 'App User' });
+    expect(config.userInfoClaims(context)).toEqual({
+      name: 'App User (app-user)',
+      scopes: ['openid'],
+    });
+  });
+
+  it('rejects claim name lists with claims the schema does not define', () => {
+    expect(() =>
+      defineMockOidcConfig({
+        defaultSubject: 'app-user',
+        claims,
+        // @ts-expect-error -- not a claim of the schema
+        accessTokenClaims: ['name', 'missing'],
+        users: [{ subject: 'app-user', label: 'Application user', claims: { name: 'x' } }],
+      }),
+    ).toThrow(/Unknown claim missing.*accessTokenClaims.*1/s);
+    expect(() =>
+      defineMockOidcConfig({
+        defaultSubject: 'app-user',
+        claims,
+        // @ts-expect-error -- not a claims mapping
+        userInfoClaims: 'name',
+        users: [{ subject: 'app-user', label: 'Application user', claims: { name: 'x' } }],
+      }),
+    ).toThrow();
   });
 
   it('rejects endpoint paths that leave the route root', () => {
@@ -263,10 +332,12 @@ describe('mock OIDC config with nested claims', () => {
   });
 
   it('includes nested claims in the userinfo', () => {
+    const config = createNestedConfig();
+    const identity = getMockOidcIdentity(config, 'carol');
+
     expect(
-      getMockOidcUserInfo(getMockOidcIdentity(createNestedConfig(), 'carol')),
+      config.userInfoClaims({ ...identity, scopes: [], clientId: 'app' }),
     ).toMatchObject({
-      sub: 'carol',
       organization: { address: { city: 'Utrecht' } },
       memberships: [{ projects: [{ key: 'API' }] }, { team: 'support' }],
     });
