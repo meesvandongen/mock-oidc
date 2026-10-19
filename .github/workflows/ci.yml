@@ -10,24 +10,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter @mvd/mock-oidc exec playwright install --with-deps chromium
       - run: pnpm typecheck
       - name: Unit tests (Node and Chromium)
         run: pnpm test
       - name: E2E tests (vite-dev, vite-static and playwright-adapter)
         run: pnpm test:e2e
+      - name: Lint the packed package (publint)
+        run: pnpm lint:publish
       - run: pnpm --filter @mvd/mock-oidc-e2e typecheck
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report
           path: |
-            e2e/playwright-report
-            e2e/test-results
+            apps/e2e/playwright-report
+            apps/e2e/test-results
           retention-days: 7

@@ -1,7 +1,7 @@
 coverage/
 dist/
 node_modules/
-src/authorize-page/bundle.generated.ts
+packages/mock-oidc/src/authorize-page/bundle.generated.ts
 test-results/
 playwright-report/
 __screenshots__/

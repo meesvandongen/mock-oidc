@@ -1,6 +1,6 @@
 name: Pages
 
-# Publishes the example app (e2e/) as a static site: one page per OIDC
+# Publishes the example app (apps/e2e) as a static site: one page per OIDC
 # library, signing in through the mock authorize page written by the Vite
 # plugin, with the other provider endpoints served by the MSW worker.
 on:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: e2e/dist
+          path: apps/e2e/dist
 
   deploy:
     needs: build
