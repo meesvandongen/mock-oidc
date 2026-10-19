@@ -1,0 +1,36 @@
+name: Release
+
+# While changesets are pending on main, this opens (or updates) a "Version
+# Packages" pull request. Merging it leaves main with an unpublished version,
+# which is then published to npm through trusted publishing (OIDC), with no
+# npm token. The trusted publisher on npmjs.com must name this workflow file
+# (release.yml) and the `npm` environment.
+on:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: write # version commits, git tags and GitHub releases
+      pull-requests: write # the version pull request
+      id-token: write # npm trusted publishing
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      # Node 24 ships npm 11, which trusted publishing needs; pnpm 10 hands the
+      # packed tarball to npm to publish.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      # `pnpm publish` runs the prepack script, which builds dist/.
+      - uses: changesets/action@v2
+        with:
+          publish-script: pnpm changeset publish
+          commit-message: "chore: version packages"
+          pr-title: "chore: version packages"

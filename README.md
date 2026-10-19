@@ -288,3 +288,18 @@ that it contains nothing of the mock provider.
 The same static build is published to GitHub Pages by
 `.github/workflows/pages.yml` on every push to `main`. Build it locally with
 `pnpm --filter @mvd/mock-oidc-e2e build:pages`.
+
+### Releasing
+
+Releases are managed with [Changesets](https://changesets.dev). Add a
+changeset to every pull request that changes the published package:
+
+```sh
+pnpm changeset
+```
+
+`.github/workflows/release.yml` turns pending changesets on `main` into a
+"Version Packages" pull request. Merging that pull request publishes the new
+version to npm through
+[trusted publishing](https://docs.npmjs.com/trusted-publishers), so the
+workflow needs no npm token.

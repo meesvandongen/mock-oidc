@@ -2,6 +2,10 @@
   "name": "@mvd/mock-oidc",
   "version": "0.1.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meesvandongen/mock-oidc.git"
+  },
   "packageManager": "pnpm@10.28.0",
   "files": [
     "dist",
@@ -44,7 +48,8 @@
     "pretest": "pnpm build:authorize-page",
     "test": "vitest run",
     "test:e2e": "pnpm build && pnpm --filter @mvd/mock-oidc-e2e test",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build",
+    "changeset": "changeset"
   },
   "dependencies": {
     "jose": "^6.2.3"
@@ -63,6 +68,8 @@
     "@autoform/core": "^4.0.0",
     "@autoform/react": "^5.0.0",
     "@autoform/zod": "^6.0.0",
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
     "@hookform/resolvers": "^5.9.1",
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
