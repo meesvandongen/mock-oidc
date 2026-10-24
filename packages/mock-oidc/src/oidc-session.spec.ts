@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vite-plus/test';
 import { z } from 'zod';
 import { defineMockOidcConfig } from './config.js';
 import {

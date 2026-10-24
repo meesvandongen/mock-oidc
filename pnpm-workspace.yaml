@@ -6,3 +6,23 @@ allowBuilds:
   '@axa-fr/oidc-client': false
   '@axa-fr/react-oidc': false
   msw: false
+
+catalog:
+  '@vitest/browser-playwright': 5.0.5
+  vite: npm:@voidzero-dev/vite-plus-core@1.4.0
+  vite-plus: 1.4.0
+  vitest: 5.0.5
+
+# vite-plus provides `vite` (its own core) and `vitest`; point every copy at
+# the catalog versions and accept them as peers.
+overrides:
+  vite@*: 'catalog:'
+  vitest@*: 'catalog:'
+
+peerDependencyRules:
+  allowAny:
+    - vite
+    - vitest
+  allowedVersions:
+    vite: '*'
+    vitest: '*'

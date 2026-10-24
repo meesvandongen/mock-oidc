@@ -1,3 +1,7 @@
+// Declares `?inline` CSS imports for type-aware linting, which does not read
+// tsconfig.authorize-page.json.
+/// <reference types="vite/client" />
+
 import { createRoot } from 'react-dom/client';
 import {
   type MockOidcPageData,

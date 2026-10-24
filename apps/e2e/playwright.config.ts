@@ -53,19 +53,19 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'pnpm exec vite --port 5173 --strictPort',
+      command: 'pnpm exec vp dev --port 5173 --strictPort',
       url: devServerUrl,
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'pnpm exec vite --mode playwright --port 5174 --strictPort',
+      command: 'pnpm exec vp dev --mode playwright --port 5174 --strictPort',
       url: playwrightServerUrl,
       reuseExistingServer: !process.env.CI,
     },
     {
       command:
-        `pnpm exec vite build --mode static --base ${staticBase} && ` +
-        `pnpm exec vite preview --mode static --base ${staticBase} --port 5175 --strictPort`,
+        `pnpm exec vp build --mode static --base ${staticBase} && ` +
+        `pnpm exec vp preview --mode static --base ${staticBase} --port 5175 --strictPort`,
       url: staticServerUrl,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
