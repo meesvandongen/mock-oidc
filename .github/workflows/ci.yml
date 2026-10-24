@@ -19,6 +19,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @mvd/mock-oidc exec playwright install --with-deps chromium
+      # Type-aware lint resolves @mvd/mock-oidc from dist and needs the generated
+      # authorize-page bundle, so build first.
+      - run: pnpm build
       - run: pnpm lint
       - run: pnpm typecheck
       - name: Unit tests (Node and Chromium)
