@@ -6,3 +6,4 @@ test-results/
 playwright-report/
 __screenshots__/
 .vitest-attachments/
+.vitest/

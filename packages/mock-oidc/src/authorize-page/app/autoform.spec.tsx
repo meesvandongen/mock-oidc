@@ -1,5 +1,5 @@
 import type { ParsedField } from '@autoform/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { z } from 'zod';
 import { createMockOidcFormSchema } from '../form-schema.js';
 import { MockOidcSchemaProvider } from './autoform.js';

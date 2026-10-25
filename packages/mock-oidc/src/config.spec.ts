@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vite-plus/test';
 import { z } from 'zod';
 import { defineMockOidcConfig } from './config.js';
 import { getMockOidcIdentity } from './identity.js';

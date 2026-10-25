@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { mockOidcAuthorizePage } from '@mvd/mock-oidc/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, lazyPlugins } from 'vite-plus';
 import { mockOidcConfig } from './src/mock-oidc.config';
 
 const pages = [
@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     exclude: ['oidc-spa', 'oidc-spa/entrypoint', 'oidc-spa/react-spa', 'oidc-spa/core'],
   },
-  plugins: [
+  plugins: lazyPlugins(() => [
     react(),
     // Only the dev server and the static demo serve the mock provider. In
     // `playwright` mode it is mocked from the Playwright test process, and
@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => ({
       outputDirectory: 'dist',
       config: mockOidcConfig,
     }),
-  ],
+  ]),
   build: {
     target: 'es2022',
     rollupOptions: {

@@ -1,6 +1,6 @@
 import { createLocalJWKSet, type JSONWebKeySet, jwtVerify } from 'jose';
 import { getResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { z } from 'zod';
 import { encodeMockOidcAuthorizationCode } from './authorization.js';
 import { defineMockOidcConfig, type MockOidcConfigInput } from './config.js';

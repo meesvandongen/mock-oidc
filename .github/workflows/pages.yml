@@ -22,15 +22,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v6
+      # pnpm comes from the packageManager field in package.json. pnpm 12 needs a
+      # newer corepack than the one bundled with Node.
+      - run: npm install -g corepack@latest && corepack enable
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Build the example app for GitHub Pages
-        run: pnpm --filter @mvd/mock-oidc-e2e exec vite build --mode static --base "/${{ github.event.repository.name }}/"
+        run: pnpm --filter @mvd/mock-oidc-e2e exec vp build --mode static --base "/${{ github.event.repository.name }}/"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build:pages": "vite build --mode static --base /mock-oidc/",
+    "dev": "vp dev",
+    "build:pages": "vp build --mode static --base /mock-oidc/",
     "test": "playwright test",
     "typecheck": "tsc -p tsconfig.json"
   },
@@ -33,6 +33,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "msw": "^2.15.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4"
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

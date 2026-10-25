@@ -42,12 +42,12 @@
     }
   },
   "scripts": {
-    "build": "pnpm build:authorize-page && tsdown",
+    "build": "pnpm build:authorize-page && vp pack",
     "lint:publish": "publint --strict",
     "build:authorize-page": "node scripts/build-authorize-page.ts",
     "typecheck": "pnpm build:authorize-page && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.authorize-page.json && tsc -p tsconfig.scripts.json",
     "pretest": "pnpm build:authorize-page",
-    "test": "vitest run",
+    "test": "vp test run",
     "prepack": "pnpm build"
   },
   "dependencies": {
@@ -71,17 +71,16 @@
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitest/browser-playwright": "4.1.11",
+    "@vitest/browser-playwright": "catalog:",
     "msw": "^2.15.0",
     "playwright": "^1.64.1",
     "publint": "^0.3.25",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-hook-form": "^7.90.0",
-    "tsdown": "^0.23.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.0",
-    "vitest": "^4.1.11",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
     "zod": "^4.6.7"
   },
   "publishConfig": {
