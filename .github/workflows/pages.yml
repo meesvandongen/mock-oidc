@@ -33,7 +33,7 @@ jobs:
       - run: pnpm build
       - name: Build the example app for GitHub Pages
         run: pnpm --filter @mvd/mock-oidc-e2e exec vp build --mode static --base "/${{ github.event.repository.name }}/"
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v3
         with:
           path: apps/e2e/dist
