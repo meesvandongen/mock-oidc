@@ -1,5 +1,11 @@
 # @mvd/mock-oidc
 
+## 0.3.0
+
+### Minor Changes
+
+- [#23](https://github.com/meesvandongen/mock-oidc/pull/23) [`48547e1`](https://github.com/meesvandongen/mock-oidc/commit/48547e16033ee8383c3444f7b81c93c1feb49444) Thanks [@meesvandongen](https://github.com/meesvandongen)! - Support MSW 3: the `msw` peer dependency now accepts `>=2 <4`.
+
 ## 0.2.0
 
 ### Minor Changes
