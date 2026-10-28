@@ -257,7 +257,7 @@ importers:
     dependencies:
       jose:
         specifier: ^6.2.3
-        version: 6.2.12
+        version: 6.2.13
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@1.4.0
         version: '@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.5)(publint@0.3.25)(typescript@7.0.2)(yaml@2.9.1)'
@@ -267,13 +267,13 @@ importers:
         version: 4.0.0
       '@autoform/react':
         specifier: ^5.0.0
-        version: 5.0.0(@hookform/resolvers@5.9.2(@standard-schema/spec@1.1.0)(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7))(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)
+        version: 5.0.0(@hookform/resolvers@5.9.2(@standard-schema/spec@1.1.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7))(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)
       '@autoform/zod':
         specifier: ^6.0.0
         version: 6.0.0(zod@4.6.7)
       '@hookform/resolvers':
         specifier: ^5.9.1
-        version: 5.9.2(@standard-schema/spec@1.1.0)(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
+        version: 5.9.2(@standard-schema/spec@1.1.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
       '@types/node':
         specifier: ^26.6.2
         version: 26.6.5
@@ -303,7 +303,7 @@ importers:
         version: 19.3.1(react@19.3.1)
       react-hook-form:
         specifier: ^7.90.0
-        version: 7.90.0(@types/react@19.3.0)(react@19.3.1)
+        version: 7.91.0(@types/react@19.3.0)(react@19.3.1)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1527,8 +1527,8 @@ packages:
   jju@1.4.0:
     resolution: {integrity: sha512-8wb9Yw966OSxApiCt0K3yNJL8pnNeIv+OEq2YMidz4FKP6nonSRoOXc80iXY4JaN2FC11B9qsNmDsm+ZOfMROA==}
 
-  jose@6.2.12:
-    resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==}
+  jose@6.2.13:
+    resolution: {integrity: sha512-7TIg10ZE1x82YediN+lcrPNvGMKge9yFHQD+Qho/b8y2adfugU3AsvvHfxV0fzyFllT6l9xCjf4RWY9g/Z9PJQ==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -1800,8 +1800,8 @@ packages:
     peerDependencies:
       react: ^19.3.1
 
-  react-hook-form@7.90.0:
-    resolution: {integrity: sha512-+NdG0FLzCPhFOp2NNxaUYLF9fyZhNjx9FTBBSYWF71/l6BBlmIc/j6xlp3DbaHWLJbIG7Zd8oznA19xJClU97w==}
+  react-hook-form@7.91.0:
+    resolution: {integrity: sha512-5BEBUnCBwa28AFXYTYmOaB/+CSpJ/+CWVASHEvIGUzFdHyUiPHeRhG7r5hOZ8nZi0yP7pbHdFNXO/p31EKTJFQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@types/react': '*'
@@ -2075,13 +2075,13 @@ snapshots:
 
   '@autoform/core@4.0.0': {}
 
-  '@autoform/react@5.0.0(@hookform/resolvers@5.9.2(@standard-schema/spec@1.1.0)(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7))(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)':
+  '@autoform/react@5.0.0(@hookform/resolvers@5.9.2(@standard-schema/spec@1.1.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7))(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@autoform/core': 4.0.0
       react: 19.3.1
     optionalDependencies:
-      '@hookform/resolvers': 5.9.2(@standard-schema/spec@1.1.0)(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
-      react-hook-form: 7.90.0(@types/react@19.3.0)(react@19.3.1)
+      '@hookform/resolvers': 5.9.2(@standard-schema/spec@1.1.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
+      react-hook-form: 7.91.0(@types/react@19.3.0)(react@19.3.1)
 
   '@autoform/zod@6.0.0(zod@4.6.7)':
     dependencies:
@@ -2236,10 +2236,10 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
-  '@hookform/resolvers@5.9.2(@standard-schema/spec@1.1.0)(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)':
+  '@hookform/resolvers@5.9.2(@standard-schema/spec@1.1.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)':
     dependencies:
       '@standard-schema/utils': 0.3.0
-      react-hook-form: 7.90.0(@types/react@19.3.0)(react@19.3.1)
+      react-hook-form: 7.91.0(@types/react@19.3.0)(react@19.3.1)
     optionalDependencies:
       '@standard-schema/spec': 1.1.0
       zod: 4.6.7
@@ -2992,7 +2992,7 @@ snapshots:
 
   jju@1.4.0: {}
 
-  jose@6.2.12: {}
+  jose@6.2.13: {}
 
   js-tokens@4.0.0: {}
 
@@ -3287,7 +3287,7 @@ snapshots:
       react: 19.3.1
       scheduler: 0.28.0
 
-  react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1):
+  react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1):
     dependencies:
       react: 19.3.1
     optionalDependencies:
