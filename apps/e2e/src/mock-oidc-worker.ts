@@ -20,7 +20,7 @@ export async function startMockOidcWorker() {
 
   await worker.start({
     serviceWorker: { url: pageUrl('mockServiceWorker.js') },
-    onUnhandledRequest: 'bypass',
+    onUnhandledFrame: 'bypass',
     quiet: true,
   });
 }

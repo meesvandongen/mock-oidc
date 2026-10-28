@@ -200,7 +200,7 @@ const worker = setupWorker(
     getIdentity: () => getMockOidcIdentityFromWindow(window, mockOidcConfig),
   }),
 );
-await worker.start({ onUnhandledRequest: 'bypass' });
+await worker.start({ onUnhandledFrame: 'bypass' });
 ```
 
 The selected subject and claims are kept in `sessionStorage`
