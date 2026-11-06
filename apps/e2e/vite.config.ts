@@ -24,8 +24,9 @@ export default defineConfig(({ mode }) => ({
   plugins: lazyPlugins(() => [
     react(),
     // Only the dev server and the static demo serve the mock provider. In
-    // `playwright` mode it is mocked from the Playwright test process, and
-    // production builds contain nothing of it.
+    // `playwright` mode it is mocked from the Playwright test process, in
+    // `msw-pages` mode the MSW worker serves the pages, and production builds
+    // contain nothing of it.
     mockOidcAuthorizePage({
       enabled: mode === 'development' || mode === 'static',
       outputDirectory: 'dist',

@@ -34,7 +34,7 @@ exec playwright install chromium`). To use a different Chromium build, set
 [oidc-react](https://github.com/bjerkio/oidc-react),
 [oidc-spa](https://github.com/keycloakify/oidc-spa) and
 [@axa-fr/react-oidc](https://github.com/AxaFrance/oidc-client). Every library
-is tested in three Playwright projects:
+is tested in these Playwright projects:
 
 - `vite-dev` runs the development flow: the MSW worker in the browser plus the
   AutoForm authorize page served by the Vite plugin;
@@ -43,6 +43,12 @@ is tested in three Playwright projects:
   build output;
 - `playwright-adapter` runs the app without the plugin and worker
   (`vp dev --mode playwright`) and mocks the provider from the test process.
+
+`msw-pages-dev` and `msw-pages-static` run the same sign-in tests without the
+plugin (`--mode msw-pages`): the MSW worker serves the authorize and end session
+pages through MSW 3's navigation interception. Their `tests/msw-pages` specs
+also pin down when that does not work (fresh tabs, reloads, pages without the
+worker).
 
 The `production-build` project builds the app in production mode and checks
 that it contains nothing of the mock provider.

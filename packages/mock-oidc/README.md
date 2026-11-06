@@ -206,6 +206,27 @@ await worker.start({ onUnhandledFrame: 'bypass' });
 The selected subject and claims are kept in `sessionStorage`
 (`mock.oidc.subject` and `mock.oidc.claims`).
 
+### Pages from the MSW worker (MSW 3)
+
+MSW 3 intercepts page navigations, so the worker can serve the authorize and
+end session pages as well, without the Vite plugin and without pages in the
+build output:
+
+```ts
+import { createMockOidcPageHandlers } from '@mvd/mock-oidc/pages';
+
+const worker = setupWorker(
+  ...createOidcHandlers({ issuerUrl, clientId, config, getIdentity }),
+  ...createMockOidcPageHandlers({ issuerUrl, config: mockOidcConfig }),
+);
+```
+
+The service worker hands a navigation to a page that runs MSW, so this only
+works while one is open: sign-in redirects and silent sign-in iframes started
+by the app are answered, but opening the authorize URL in a fresh browser,
+reloading the authorize page, or navigating from a page that does not start
+the worker reaches the server instead. Use the Vite plugin when those matter.
+
 ### Production builds
 
 To keep the mock provider out of production builds, enable the plugin only

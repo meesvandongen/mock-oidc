@@ -39,6 +39,10 @@
     "./authorization": {
       "types": "./dist/authorization.d.ts",
       "import": "./dist/authorization.js"
+    },
+    "./pages": {
+      "types": "./dist/page-handlers.d.ts",
+      "import": "./dist/page-handlers.js"
     }
   },
   "scripts": {

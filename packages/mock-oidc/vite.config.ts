@@ -19,6 +19,7 @@ export default defineConfig({
       playwright: 'src/playwright.ts',
       vite: 'src/vite.ts',
       authorization: 'src/authorization.ts',
+      'page-handlers': 'src/page-handlers.ts',
     },
     format: 'esm',
     // Most entries run in the browser as well as in Node.js; `neutral` also

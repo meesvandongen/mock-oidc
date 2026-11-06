@@ -5,6 +5,10 @@ const playwrightServerUrl = 'http://localhost:5174';
 // Served under the same sub-path as the GitHub Pages deployment.
 const staticBase = '/mock-oidc/';
 const staticServerUrl = `http://localhost:5175${staticBase}`;
+// The same flows without the Vite plugin: the MSW worker serves the pages.
+const mswPagesDevServerUrl = 'http://localhost:5176';
+const mswPagesStaticServerUrl = `http://localhost:5177${staticBase}`;
+const mswPagesTests = ['vite-plugin/sign-in.spec.ts', 'msw-pages/**/*.spec.ts'];
 
 // Allows running against a preinstalled Chromium whose revision differs from
 // the one bundled with the installed Playwright version.
@@ -45,6 +49,23 @@ export default defineConfig({
       use: { baseURL: playwrightServerUrl },
     },
     {
+      // MSW 3 intercepts page navigations, so the worker can serve the
+      // authorize and end session pages instead of the Vite plugin. Runs the
+      // sign-in flows of every library and the limits of that approach.
+      name: 'msw-pages-dev',
+      testDir: 'tests',
+      testMatch: mswPagesTests,
+      use: { baseURL: mswPagesDevServerUrl },
+    },
+    {
+      // The same against a static build without any mock provider pages in
+      // the build output.
+      name: 'msw-pages-static',
+      testDir: 'tests',
+      testMatch: mswPagesTests,
+      use: { baseURL: mswPagesStaticServerUrl },
+    },
+    {
       // Builds the app for production, without a browser, and checks that
       // the mock provider is left out.
       name: 'production-build',
@@ -67,6 +88,20 @@ export default defineConfig({
         `pnpm exec vp build --mode static --base ${staticBase} && ` +
         `pnpm exec vp preview --mode static --base ${staticBase} --port 5175 --strictPort`,
       url: staticServerUrl,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: 'pnpm exec vp dev --mode msw-pages --port 5176 --strictPort',
+      url: mswPagesDevServerUrl,
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      // A separate output directory: the vite-static build runs in parallel.
+      command:
+        `pnpm exec vp build --mode msw-pages --base ${staticBase} --outDir dist-msw-pages && ` +
+        `pnpm exec vp preview --mode msw-pages --base ${staticBase} --outDir dist-msw-pages --port 5177 --strictPort`,
+      url: mswPagesStaticServerUrl,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },
