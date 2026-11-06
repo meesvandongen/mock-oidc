@@ -1,8 +1,6 @@
 import { fileURLToPath } from 'node:url';
-import { mockOidcAuthorizePage } from '@mvd/mock-oidc/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig, lazyPlugins } from 'vite-plus';
-import { mockOidcConfig } from './src/mock-oidc.config';
+import { defineConfig } from 'vite-plus';
 
 const pages = [
   'react-oidc-context',
@@ -21,18 +19,9 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     exclude: ['oidc-spa', 'oidc-spa/entrypoint', 'oidc-spa/react-spa', 'oidc-spa/core'],
   },
-  plugins: lazyPlugins(() => [
-    react(),
-    // Only the dev server and the static demo serve the mock provider. In
-    // `playwright` mode it is mocked from the Playwright test process, in
-    // `msw-pages` mode the MSW worker serves the pages, and production builds
-    // contain nothing of it.
-    mockOidcAuthorizePage({
-      enabled: mode === 'development' || mode === 'static',
-      outputDirectory: 'dist',
-      config: mockOidcConfig,
-    }),
-  ]),
+  // The mock provider, including its authorize and end session pages, runs in
+  // the browser with MSW (see src/mocks.ts); no Vite plugin is needed.
+  plugins: [react()],
   build: {
     target: 'es2022',
     rollupOptions: {

@@ -36,19 +36,15 @@ exec playwright install chromium`). To use a different Chromium build, set
 [@axa-fr/react-oidc](https://github.com/AxaFrance/oidc-client). Every library
 is tested in these Playwright projects:
 
-- `vite-dev` runs the development flow: the MSW worker in the browser plus the
-  AutoForm authorize page served by the Vite plugin;
-- `vite-static` runs the same tests against a static build served by
-  `vp preview` under `/mock-oidc/`, using the pages the plugin writes to the
-  build output;
-- `playwright-adapter` runs the app without the plugin and worker
+- `msw-dev` runs the development flow: the MSW worker in the browser serves
+  the whole provider, including the AutoForm authorize page;
+- `msw-static` runs the same tests against a static build served by
+  `vp preview` under `/mock-oidc/`;
+- `playwright-adapter` runs the app without the worker
   (`vp dev --mode playwright`) and mocks the provider from the test process.
 
-`msw-pages-dev` and `msw-pages-static` run the same sign-in tests without the
-plugin (`--mode msw-pages`): the MSW worker serves the authorize and end session
-pages through MSW 3's navigation interception. Their `tests/msw-pages` specs
-also pin down when that does not work (fresh tabs, reloads, pages without the
-worker).
+`tests/msw-worker/navigation.spec.ts` also pins down when the worker cannot
+serve the authorize page (fresh tabs, reloads, pages without the worker).
 
 The `production-build` project builds the app in production mode and checks
 that it contains nothing of the mock provider.

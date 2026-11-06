@@ -7,9 +7,9 @@ as a static site, with one page per OIDC client library.
 A mock OpenID Connect provider for single-page apps:
 
 - a **zod** based configuration of mock users and their claims,
-- **MSW** handlers for discovery, JWKS, token and userinfo endpoints,
-- a **Vite** plugin that serves an interactive authorize page, generated from
-  the claims schema with [AutoForm](https://github.com/vantezzen/autoform),
+- **MSW** handlers for the whole provider: discovery, JWKS, token and
+  userinfo endpoints, and an interactive authorize page generated from the
+  claims schema with [AutoForm](https://github.com/vantezzen/autoform),
 - a **Playwright** adapter that signs in a chosen identity without any UI.
 
 Authorization codes carry the request's `nonce`, `scope` and PKCE challenge,
@@ -138,30 +138,40 @@ are plain functions, so reuse them across mappings.
 set by the provider. Access tokens also get `scope` and `client_id`, unless the
 mapping returns its own.
 
-## Development: Vite plugin and MSW
+## Development: MSW
+
+The whole provider runs in the browser with MSW 3, including the authorize and
+end session pages: MSW 3 intercepts page navigations, so the worker answers
+the app's redirect to the authorize endpoint with the page. No dev server
+plugin or files in the build output are needed, so the same setup works on a
+dev server and in static preview deployments.
 
 ```ts
-// vite.config.ts
-import { mockOidcAuthorizePage } from '@mvd/mock-oidc/vite';
+import { createOidcHandlers } from '@mvd/mock-oidc';
+import { getMockOidcIdentityFromWindow } from '@mvd/mock-oidc/session';
+import { setupWorker } from 'msw/browser';
 
-export default defineConfig(({ mode }) => ({
-  plugins: [
-    mockOidcAuthorizePage({
-      enabled: mode === 'development',
-      outputDirectory: 'dist',
-      config: mockOidcConfig,
-    }),
-  ],
-}));
+const worker = setupWorker(
+  ...createOidcHandlers({
+    issuerUrl: new URL(import.meta.env.BASE_URL, location.origin).href.replace(/\/$/, ''),
+    clientId: 'my-app',
+    config: mockOidcConfig,
+    getIdentity: () => getMockOidcIdentityFromWindow(window, mockOidcConfig),
+  }),
+);
+await worker.start({ onUnhandledFrame: 'bypass' });
 ```
 
-The plugin serves the authorize and end session pages in development and
-writes them into `outputDirectory` on build, for static preview deployments.
-Extensionless paths are written as HTML files (`authorize` becomes
-`authorize.html`, `oidc/logout/` becomes `oidc/logout/index.html`), which
-`vite preview` and static hosts such as Netlify, Vercel (`cleanUrls`),
-Cloudflare Pages and GitHub Pages serve at the configured URL. Include the
-MSW worker in such builds to serve the other endpoints.
+The endpoint paths are relative to the issuer URL; use the app's base URL as
+issuer (the origin when it is served at `/`).
+
+The service worker hands a navigation to a page that runs MSW. Sign-in
+redirects, sign-out redirects and silent sign-in iframes started by the app
+are therefore answered, as are new tabs while another tab of the app is open.
+Opening the authorize URL in a fresh browser, reloading the authorize page, or
+navigating to it from a page that does not start the worker reaches your
+server instead.
+
 The pages are self-contained: the authorize form is a prebuilt React and
 AutoForm bundle, so your app needs neither. The claims schema is embedded as
 JSON Schema and turned back into a zod schema in the browser:
@@ -183,55 +193,14 @@ nested objects and arrays. Array items are labelled after their array
 and transforms cannot be represented as JSON Schema; they are not checked by
 the form, but they are applied when the MSW handlers read the identity.
 
-The endpoint paths are relative to Vite's `base`, both on the dev server and
-in the build output, so use the app's base URL as issuer (the origin when
-`base` is `/`). The provider's other endpoints run in the browser with MSW:
-
-```ts
-import { createOidcHandlers } from '@mvd/mock-oidc';
-import { getMockOidcIdentityFromWindow } from '@mvd/mock-oidc/session';
-import { setupWorker } from 'msw/browser';
-
-const worker = setupWorker(
-  ...createOidcHandlers({
-    issuerUrl: new URL(import.meta.env.BASE_URL, location.origin).href.replace(/\/$/, ''),
-    clientId: 'my-app',
-    config: mockOidcConfig,
-    getIdentity: () => getMockOidcIdentityFromWindow(window, mockOidcConfig),
-  }),
-);
-await worker.start({ onUnhandledFrame: 'bypass' });
-```
-
 The selected subject and claims are kept in `sessionStorage`
 (`mock.oidc.subject` and `mock.oidc.claims`).
 
-### Pages from the MSW worker (MSW 3)
-
-MSW 3 intercepts page navigations, so the worker can serve the authorize and
-end session pages as well, without the Vite plugin and without pages in the
-build output:
-
-```ts
-import { createMockOidcPageHandlers } from '@mvd/mock-oidc/pages';
-
-const worker = setupWorker(
-  ...createOidcHandlers({ issuerUrl, clientId, config, getIdentity }),
-  ...createMockOidcPageHandlers({ issuerUrl, config: mockOidcConfig }),
-);
-```
-
-The service worker hands a navigation to a page that runs MSW, so this only
-works while one is open: sign-in redirects and silent sign-in iframes started
-by the app are answered, but opening the authorize URL in a fresh browser,
-reloading the authorize page, or navigating from a page that does not start
-the worker reaches the server instead. Use the Vite plugin when those matter.
-
 ### Production builds
 
-To keep the mock provider out of production builds, enable the plugin only
-in the modes that need it, and load the worker, the handlers and the
-mock configuration with a dynamic import behind a build-time condition:
+To keep the mock provider out of production builds, load the worker, the
+handlers and the mock configuration with a dynamic import behind a build-time
+condition:
 
 ```ts
 // mocks.ts: the only module that imports the worker setup.

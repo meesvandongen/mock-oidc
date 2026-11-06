@@ -1,6 +1,5 @@
 coverage/
 dist/
-dist-*/
 node_modules/
 packages/mock-oidc/src/authorize-page/bundle.generated.ts
 test-results/

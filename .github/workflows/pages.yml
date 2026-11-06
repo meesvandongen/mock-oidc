@@ -1,8 +1,8 @@
 name: Pages
 
 # Publishes the example app (apps/e2e) as a static site: one page per OIDC
-# library, signing in through the mock authorize page written by the Vite
-# plugin, with the other provider endpoints served by the MSW worker.
+# library, with the whole mock provider, including the authorize page, served
+# by the MSW worker.
 on:
   push:
     branches: [main]

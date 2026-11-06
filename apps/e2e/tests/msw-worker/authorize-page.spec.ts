@@ -1,15 +1,21 @@
 import { expect, test as base } from '@playwright/test';
+import { expectAnonymous, libraries } from '../libraries';
 
 /**
  * Behaviour of the authorize page itself, independent of a client library,
- * both as served by the dev server and as written to the build output.
+ * both on the dev server and in the static build.
+ *
+ * The MSW worker serves the page to navigations from a page that runs it, so
+ * every test opens an app page before it navigates to the authorize URL.
  */
 const test = base.extend<{
-  authorizeUrl: (params: Record<string, string>) => string;
+  openAuthorizePage: (params: Record<string, string>) => Promise<void>;
 }>({
-  authorizeUrl: async ({ baseURL }, use) => {
-    await use(
-      (params) =>
+  openAuthorizePage: async ({ baseURL, page }, use) => {
+    await use(async (params) => {
+      await page.goto(libraries[0].path);
+      await expectAnonymous(page);
+      await page.goto(
         `authorize?${new URLSearchParams({
           response_type: 'code',
           client_id: 'mock-oidc-e2e',
@@ -17,12 +23,13 @@ const test = base.extend<{
           state: 'test-state',
           ...params,
         })}`,
-    );
+      );
+    });
   },
 });
 
-test('validates the claims with the zod schema before signing in', async ({ page, authorizeUrl }) => {
-  await page.goto(authorizeUrl({}));
+test('validates the claims with the zod schema before signing in', async ({ page, openAuthorizePage }) => {
+  await openAuthorizePage({});
   await page.getByLabel('Name').fill('');
   await page.getByLabel('E-mail', { exact: true }).fill('not-an-email');
   await page.getByRole('button', { name: 'Log in' }).click();
@@ -36,8 +43,8 @@ test('validates the claims with the zod schema before signing in', async ({ page
   await expect(page).toHaveURL(/\/callback\?code=mock-oidc\.[^&]+&state=test-state$/);
 });
 
-test('edits nested objects and arrays of objects', async ({ page, authorizeUrl }) => {
-  await page.goto(authorizeUrl({}));
+test('edits nested objects and arrays of objects', async ({ page, openAuthorizePage }) => {
+  await openAuthorizePage({});
   await page.getByLabel('User').selectOption({ label: 'Bob (editor, admin)' });
 
   await page.getByRole('group', { name: 'Address' }).getByLabel('City').fill('Ghent');
@@ -78,8 +85,8 @@ test('edits nested objects and arrays of objects', async ({ page, authorizeUrl }
   });
 });
 
-test('supports custom subjects', async ({ page, authorizeUrl }) => {
-  await page.goto(authorizeUrl({}));
+test('supports custom subjects', async ({ page, openAuthorizePage }) => {
+  await openAuthorizePage({});
   await page.getByLabel('User').selectOption({ label: 'Custom user' });
   await expect(page.getByLabel('Subject')).toHaveValue('');
   await page.getByLabel('Subject').fill('carol');
@@ -97,23 +104,23 @@ test('supports custom subjects', async ({ page, authorizeUrl }) => {
   });
 
   // The page restores the previous selection on the next sign-in.
-  await page.goto(authorizeUrl({}));
+  await openAuthorizePage({});
   await expect(page.getByLabel('User')).toHaveValue('');
   await expect(page.getByLabel('Subject')).toHaveValue('carol');
 });
 
-test('answers prompt=none from the provider session', async ({ page, authorizeUrl }) => {
-  await page.goto(authorizeUrl({ prompt: 'none', response_mode: 'fragment' }));
+test('answers prompt=none from the provider session', async ({ page, openAuthorizePage }) => {
+  await openAuthorizePage({ prompt: 'none', response_mode: 'fragment' });
   await expect(page).toHaveURL(/\/callback#error=login_required&.*state=test-state$/);
 
-  await page.goto(authorizeUrl({}));
+  await openAuthorizePage({});
   await page.getByRole('button', { name: 'Log in' }).click();
-  await page.goto(authorizeUrl({ prompt: 'none' }));
+  await openAuthorizePage({ prompt: 'none' });
   await expect(page).toHaveURL(/\/callback\?code=mock-oidc\.[^&]+&state=test-state$/);
 });
 
-test('rejects redirects to other origins', async ({ page, authorizeUrl }) => {
-  await page.goto(authorizeUrl({ redirect_uri: 'https://example.com/callback' }));
+test('rejects redirects to other origins', async ({ page, openAuthorizePage }) => {
+  await openAuthorizePage({ redirect_uri: 'https://example.com/callback' });
   await expect(page.getByRole('alert')).toHaveText(
     'The mock OIDC redirect origin is not allowed: https://example.com',
   );

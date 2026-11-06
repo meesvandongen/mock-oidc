@@ -1,4 +1,5 @@
 import type { HttpHandler } from 'msw';
+import { createOidcApiHandlers } from './api-handlers.js';
 import {
   createMockOidcAuthorizationCode,
   createMockOidcAuthorizationResponseUrl,
@@ -15,7 +16,6 @@ import {
   type MockOidcIdentity,
   type MockOidcIdentityOverrides,
 } from './identity.js';
-import { createOidcHandlers } from './oidc-handlers.js';
 
 export type CreateMockOidcPlaywrightAdapterOptions<
   TClaims extends MockOidcClaimsSchema,
@@ -123,7 +123,7 @@ export function createMockOidcPlaywrightAdapter<
   }
 
   const adapter: MockOidcPlaywrightAdapter<TClaims> = {
-    handlers: createOidcHandlers({
+    handlers: createOidcApiHandlers({
       issuerUrl,
       clientId: options.clientId,
       config,

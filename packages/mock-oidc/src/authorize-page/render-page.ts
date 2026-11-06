@@ -10,12 +10,6 @@ import {
   mockOidcPageDataElementId,
 } from './page-data.js';
 
-/**
- * Renders the self-contained authorize and end session pages. Shared by the
- * Vite plugin (Node.js) and the MSW page handlers (browser), so it must not
- * import Node.js built-ins.
- */
-
 function serializeInlineScriptValue(value: unknown) {
   const serializedValue = JSON.stringify(value);
   if (serializedValue === undefined) {
@@ -46,6 +40,10 @@ function createPageData(
   };
 }
 
+/**
+ * Renders the self-contained authorize or end session page, which the MSW
+ * handlers serve in the browser.
+ */
 export function renderMockOidcPage(
   config: MockOidcConfig,
   page: MockOidcPageData['page'],

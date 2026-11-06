@@ -2,9 +2,8 @@ import { expect, test } from '@playwright/test';
 import { expectAnonymous, libraries, readClaims } from '../libraries';
 
 /**
- * The development flow: the app's MSW worker mocks the provider endpoints and
- * the Vite plugin serves the AutoForm based authorize page. The `msw-pages-*`
- * projects run the same tests with the pages served by the MSW worker.
+ * The development flow: the app's MSW worker mocks the whole provider,
+ * including the AutoForm based authorize page and the end session page.
  */
 for (const library of libraries) {
   test.describe(library.name, () => {

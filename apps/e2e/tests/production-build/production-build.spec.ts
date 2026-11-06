@@ -5,7 +5,6 @@ import { expect, test } from '@playwright/test';
 import { build, normalizePath } from 'vite';
 
 const appRoot = fileURLToPath(new URL('../..', import.meta.url));
-const authorizePagePluginName = '@mvd/mock-oidc:authorize-page';
 const packageDirectory = normalizePath(
   realpathSync(dirname(fileURLToPath(import.meta.resolve('@mvd/mock-oidc')))),
 );
@@ -24,22 +23,13 @@ const mockModules: Record<string, (id: string) => boolean> = {
     id.endsWith('/src/mock-oidc.config.ts') || id.endsWith('/src/mock-oidc-worker.ts'),
 };
 
-/** Builds the app without writing it and lists the plugins and bundled modules. */
+/** Builds the app without writing it and lists the bundled modules. */
 async function buildApp(mode: string) {
-  let pluginNames: string[] = [];
   const result = await build({
     root: appRoot,
     mode,
     logLevel: 'silent',
     build: { write: false },
-    plugins: [
-      {
-        name: 'list-plugins',
-        configResolved(config) {
-          pluginNames = config.plugins.map((plugin) => plugin.name);
-        },
-      },
-    ],
   });
   if (!Array.isArray(result) && !('output' in result)) {
     throw new Error('Expected a build output instead of a watcher');
@@ -56,7 +46,6 @@ async function buildApp(mode: string) {
     );
 
   return {
-    pluginNames,
     /** The bundled modules of every kind of mock module. */
     mockModuleIds: Object.fromEntries(
       Object.entries(mockModules).map(([name, matches]) => [
@@ -68,11 +57,8 @@ async function buildApp(mode: string) {
 }
 
 test('the production build contains nothing of the mock provider', async () => {
-  const { pluginNames, mockModuleIds } = await buildApp('production');
+  const { mockModuleIds } = await buildApp('production');
 
-  expect
-    .soft(pluginNames.includes(authorizePagePluginName), 'authorize page plugin registered')
-    .toBe(false);
   for (const [name, ids] of Object.entries(mockModuleIds)) {
     expect.soft(ids, `${name} modules in the production build`).toEqual([]);
   }
@@ -80,9 +66,8 @@ test('the production build contains nothing of the mock provider', async () => {
 
 // Shows that the production test detects the mock provider when it is built.
 test('the static demo build contains the mock provider', async () => {
-  const { pluginNames, mockModuleIds } = await buildApp('static');
+  const { mockModuleIds } = await buildApp('static');
 
-  expect(pluginNames).toContain(authorizePagePluginName);
   for (const [name, ids] of Object.entries(mockModuleIds)) {
     expect.soft(ids, `${name} modules in the static build`).not.toEqual([]);
   }

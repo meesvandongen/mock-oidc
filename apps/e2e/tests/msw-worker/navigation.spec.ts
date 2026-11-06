@@ -2,13 +2,13 @@ import { expect, type Page, test as base } from '@playwright/test';
 import { expectAnonymous, libraries } from '../libraries';
 
 /**
- * MSW 3 intercepts page navigations (`mode: 'navigate'`), so the worker can
- * serve the authorize and end session pages without the Vite plugin. These
- * tests pin down when that works: the service worker hands a navigation to a
- * page that runs MSW, so there must be one when the navigation starts.
+ * MSW 3 intercepts page navigations (`mode: 'navigate'`), which is how the
+ * worker serves the authorize and end session pages. These tests pin down
+ * when that works: the service worker hands a navigation to a page that runs
+ * MSW, so there must be one when the navigation starts.
  *
- * The server has no authorize page in this mode: the dev server and
- * `vite preview` answer with their SPA fallback, the example index.
+ * The server has no authorize page: the dev server and `vite preview` answer
+ * with their SPA fallback, the example index.
  */
 const loginTitle = 'Mock OIDC login';
 const app = libraries[0];
