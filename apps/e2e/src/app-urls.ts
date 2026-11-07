@@ -1,6 +1,6 @@
 /**
  * URLs relative to Vite's base, so the app works both at the site root
- * (dev server) and under a sub-path such as GitHub Pages' `/mock-oidc/`.
+ * (dev server, Cloudflare) and under a sub-path such as `/mock-oidc/`.
  */
 export const baseUrl = new URL(import.meta.env.BASE_URL, window.location.origin)
   .href;

@@ -3,7 +3,7 @@
 A mock OpenID Connect provider for single-page apps, published as
 [`@mvd/mock-oidc`](packages/mock-oidc). See the
 [package README](packages/mock-oidc/README.md) for how to use it, and the
-[live demo](https://meesvandongen.github.io/mock-oidc/).
+[live demo](https://mock-oidc.mvd.im/).
 
 ## Development
 
@@ -49,14 +49,12 @@ serve the authorize page (fresh tabs, reloads, pages without the worker).
 The `production-build` project builds the app in production mode and checks
 that it contains nothing of the mock provider.
 
-The same static build is published to GitHub Pages by
-`.github/workflows/pages.yml` on every push to `main`. Build it locally with
-`pnpm --filter @mvd/mock-oidc-e2e build:pages`.
-
-It is also deployed to Cloudflare Workers with Workers Builds, configured by
-`wrangler.jsonc`: `main` runs `wrangler deploy`, and every other branch gets
-its own Preview from `wrangler preview`. Build it locally with
-`pnpm build:cloudflare`.
+The live demo is the same static build, deployed to Cloudflare Workers as
+static assets only (no Worker script) with Workers Builds, configured by
+`wrangler.jsonc`: `main` runs `wrangler deploy` to
+[mock-oidc.mvd.im](https://mock-oidc.mvd.im/), and every other branch gets
+its own Preview from `wrangler preview`, linked from its pull request. Build
+it locally with `pnpm build:cloudflare`.
 
 ## Releasing
 
