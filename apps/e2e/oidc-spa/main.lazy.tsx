@@ -28,7 +28,8 @@ function App() {
 
 await enableMocking();
 
-bootstrapOidc({
+// OidcInitializationGate waits for the bootstrap to finish.
+void bootstrapOidc({
   implementation: 'real',
   issuerUri: issuerUrl,
   clientId: 'oidc-spa',
