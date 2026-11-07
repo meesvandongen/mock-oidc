@@ -54,7 +54,7 @@ static assets only (no Worker script) with Workers Builds, configured by
 `apps/demo/wrangler.jsonc`: `main` runs `wrangler deploy` to
 [demo.mock-oidc.mvd.im](https://demo.mock-oidc.mvd.im/), and every other
 branch gets its own Preview from `wrangler preview`, linked from its pull
-request. Build it locally with `pnpm build:cloudflare`.
+request. Build it locally with `pnpm run build` in `apps/demo`.
 
 ## Documentation
 

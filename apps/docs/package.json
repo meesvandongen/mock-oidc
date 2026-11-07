@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:cloudflare": "next build",
     "postinstall": "fumadocs-mdx",
     "typecheck": "fumadocs-mdx && tsc --noEmit"
   },
