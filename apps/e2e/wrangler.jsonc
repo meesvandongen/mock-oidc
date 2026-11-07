@@ -1,5 +1,5 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
   // Hosts the example app (apps/e2e) as a static site at demo.mock-oidc.mvd.im. The mock provider,
   // including its authorize and end session pages, runs in the browser with
   // the MSW worker, so there is no Worker script.
@@ -7,7 +7,7 @@
   "compatibility_date": "2026-11-04",
   "assets": {
     // Built by `pnpm build:cloudflare`.
-    "directory": "./apps/e2e/dist",
+    "directory": "./dist",
     // `/oidc-spa` redirects to `/oidc-spa/`, which serves its index.html.
     "html_handling": "auto-trailing-slash",
     // Unknown paths serve the example index, as the dev server does. That
