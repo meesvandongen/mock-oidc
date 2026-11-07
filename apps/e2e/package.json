@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vp dev",
     "build:pages": "vp build --mode static --base /mock-oidc/",
+    "build:cloudflare": "vp build --mode static",
     "test": "playwright test",
     "typecheck": "tsc -p tsconfig.json"
   },

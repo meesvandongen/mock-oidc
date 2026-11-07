@@ -53,6 +53,11 @@ The same static build is published to GitHub Pages by
 `.github/workflows/pages.yml` on every push to `main`. Build it locally with
 `pnpm --filter @mvd/mock-oidc-e2e build:pages`.
 
+It is also deployed to Cloudflare Workers with Workers Builds, configured by
+`wrangler.jsonc`: `main` runs `wrangler deploy`, and every other branch gets
+its own Preview from `wrangler preview`. Build it locally with
+`pnpm build:cloudflare`.
+
 ## Releasing
 
 Releases are managed with [Changesets](https://changesets.dev). Add a

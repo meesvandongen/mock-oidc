@@ -3,6 +3,9 @@ packages:
   - apps/*
 
 allowBuilds:
+  # Wrangler's binaries: their install scripts check or fetch the platform build.
+  esbuild: true
+  workerd: true
   '@axa-fr/oidc-client': false
   '@axa-fr/react-oidc': false
   msw: false
