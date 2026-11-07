@@ -1,7 +1,7 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   // Hosts the documentation (apps/docs) as a static site at mock-oidc.mvd.im.
-  "name": "mock-oidc-docs",
+  "name": "mock-oidc",
   "compatibility_date": "2026-11-04",
   "assets": {
     // Built by `pnpm build:docs`.

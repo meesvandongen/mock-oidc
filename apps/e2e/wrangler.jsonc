@@ -3,7 +3,7 @@
   // Hosts the example app (apps/e2e) as a static site at demo.mock-oidc.mvd.im. The mock provider,
   // including its authorize and end session pages, runs in the browser with
   // the MSW worker, so there is no Worker script.
-  "name": "mock-oidc",
+  "name": "mock-oidc-demo",
   "compatibility_date": "2026-11-04",
   "assets": {
     // Built by `pnpm build:cloudflare`.
