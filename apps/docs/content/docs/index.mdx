@@ -1,0 +1,24 @@
+---
+title: Introduction
+description: A mock OpenID Connect provider for single-page apps.
+---
+
+`@mvd/mock-oidc` is a mock OpenID Connect provider for single-page apps. Try it in the
+[live demo](https://demo.mock-oidc.mvd.im/): the example app with one page per OIDC client library.
+
+- a **zod** based configuration of mock users and their claims,
+- **MSW** handlers for the whole provider: discovery, JWKS, token and userinfo endpoints, and an
+  interactive authorize page generated from the claims schema with
+  [AutoForm](https://github.com/vantezzen/autoform),
+- a **Playwright** adapter that signs in a chosen identity without any UI.
+
+Authorization codes carry the request's `nonce`, `scope` and PKCE challenge, so the token endpoint
+returns ID tokens with the right `nonce` and rejects mismatching `code_verifier`s. The userinfo
+endpoint requires an access token issued by the mock provider. `prompt=none` returns
+`login_required` until the user has signed in, and the end session endpoint ends the mock session.
+
+## Next steps
+
+- [Configure users](/docs/configuration) and their claims.
+- [Run the provider in the browser](/docs/msw) with MSW during development.
+- [Sign in from Playwright tests](/docs/playwright) without any UI.

@@ -3,7 +3,7 @@
 A mock OpenID Connect provider for single-page apps, published as
 [`@mvd/mock-oidc`](packages/mock-oidc). See the
 [package README](packages/mock-oidc/README.md) for how to use it, and the
-[live demo](https://mock-oidc.mvd.im/).
+[live demo](https://demo.mock-oidc.mvd.im/).
 
 ## Development
 
@@ -51,10 +51,19 @@ that it contains nothing of the mock provider.
 
 The live demo is the same static build, deployed to Cloudflare Workers as
 static assets only (no Worker script) with Workers Builds, configured by
-`wrangler.jsonc`: `main` runs `wrangler deploy` to
-[mock-oidc.mvd.im](https://mock-oidc.mvd.im/), and every other branch gets
-its own Preview from `wrangler preview`, linked from its pull request. Build
-it locally with `pnpm build:cloudflare`.
+`apps/e2e/wrangler.jsonc`: `main` runs `wrangler deploy` to
+[demo.mock-oidc.mvd.im](https://demo.mock-oidc.mvd.im/), and every other
+branch gets its own Preview from `wrangler preview`, linked from its pull
+request. Build it locally with `pnpm build:cloudflare`.
+
+## Documentation
+
+`apps/docs` is a [Fumadocs](https://fumadocs.dev) site (Next.js, statically
+exported) published at [mock-oidc.mvd.im](https://mock-oidc.mvd.im/). It is
+deployed the same way as the demo, configured by `apps/docs/wrangler.jsonc`.
+Run it with `pnpm dev:docs` and build it with `pnpm build:docs`. Point each
+Workers Builds project at its app directory (`apps/e2e` and `apps/docs`) so
+that `wrangler deploy` picks up the matching config.
 
 ## Releasing
 

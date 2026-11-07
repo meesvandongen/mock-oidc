@@ -1,0 +1,66 @@
+---
+title: Playwright
+description: Sign in a chosen identity in E2E tests without any UI.
+---
+
+The adapter keeps the identity in the test process and answers the authorization and end session
+requests with redirects, so sign-in in E2E tests needs neither the authorize page nor the service
+worker. Combine it with [`@msw/playwright`](https://github.com/mswjs/playwright) for the other
+endpoints:
+
+```ts
+import { defineNetworkFixture, type NetworkFixture } from '@msw/playwright';
+import { test as base } from '@playwright/test';
+import {
+  createMockOidcPlaywrightAdapter,
+  type MockOidcPlaywrightAdapter,
+} from '@mvd/mock-oidc/playwright';
+
+export const test = base.extend<{
+  mockOidc: MockOidcPlaywrightAdapter<typeof mockOidcConfig.claims>;
+  network: NetworkFixture;
+}>({
+  mockOidc: async ({ baseURL, context }, use) => {
+    const mockOidc = createMockOidcPlaywrightAdapter({
+      config: mockOidcConfig,
+      issuerUrl: baseURL!,
+      clientId: 'my-app',
+    });
+    await mockOidc.route(context);
+    await use(mockOidc);
+  },
+  network: [
+    async ({ context, mockOidc }, use) => {
+      const network = defineNetworkFixture({ context, handlers: mockOidc.handlers });
+      await network.enable();
+      await use(network);
+      await network.disable();
+    },
+    { auto: true },
+  ],
+});
+```
+
+The adapter signs in `config.defaultSubject` unless you pass `subject` (and optionally `claims`).
+Tests pick another identity with `setIdentity`, which applies to the next sign-in and token request:
+
+```ts
+test('shows the editor', async ({ page, mockOidc }) => {
+  mockOidc.setIdentity('demo-user', { claims: { permissions: ['app:write'] } });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+});
+```
+
+Claim overrides are merged over the user's configured defaults and validated with the claims schema.
+The merge is one level deep: an overridden nested claim, such as `tenants` or `address`, replaces the
+configured value as a whole, so it must be complete:
+
+```ts
+mockOidc.setIdentity('demo-user', {
+  claims: { tenants: [{ id: 'initech', permissions: ['billing'] }] },
+});
+```
+
+Pass `signedIn: true` to let `prompt=none` requests succeed before an interactive sign-in.

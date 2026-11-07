@@ -1,0 +1,30 @@
+{
+  "name": "@mvd/mock-oidc-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:cloudflare": "next build",
+    "postinstall": "fumadocs-mdx",
+    "typecheck": "fumadocs-mdx && tsc --noEmit"
+  },
+  "dependencies": {
+    "fumadocs-core": "16.18.1",
+    "fumadocs-mdx": "15.5.0",
+    "fumadocs-ui": "16.18.1",
+    "next": "16.4.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/mdx": "^2.0.14",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "postcss": "^8.5.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^7.0.2"
+  }
+}

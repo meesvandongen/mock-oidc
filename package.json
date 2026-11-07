@@ -6,6 +6,8 @@
   "scripts": {
     "build": "pnpm --filter @mvd/mock-oidc build",
     "build:cloudflare": "pnpm build && pnpm --filter @mvd/mock-oidc-e2e build:cloudflare",
+    "build:docs": "pnpm --filter @mvd/mock-oidc-docs build",
+    "dev:docs": "pnpm --filter @mvd/mock-oidc-docs dev",
     "lint:publish": "pnpm --filter @mvd/mock-oidc lint:publish",
     "typecheck": "pnpm --filter @mvd/mock-oidc typecheck",
     "lint": "vp lint",
