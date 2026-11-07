@@ -1,0 +1,4 @@
+{
+  "title": "mock-oidc",
+  "pages": ["index", "configuration", "msw", "playwright"]
+}

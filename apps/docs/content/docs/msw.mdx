@@ -1,0 +1,80 @@
+---
+title: Development with MSW
+description: Run the whole provider in the browser.
+---
+
+The whole provider runs in the browser with MSW 3, including the authorize and end session pages:
+MSW 3 intercepts page navigations, so the worker answers the app's redirect to the authorize
+endpoint with the page. No dev server plugin or files in the build output are needed, so the same
+setup works on a dev server and in static preview deployments.
+
+```ts
+import { createOidcHandlers } from '@mvd/mock-oidc';
+import { getMockOidcIdentityFromWindow } from '@mvd/mock-oidc/session';
+import { setupWorker } from 'msw/browser';
+
+const worker = setupWorker(
+  ...createOidcHandlers({
+    issuerUrl: new URL(import.meta.env.BASE_URL, location.origin).href.replace(/\/$/, ''),
+    clientId: 'my-app',
+    config: mockOidcConfig,
+    getIdentity: () => getMockOidcIdentityFromWindow(window, mockOidcConfig),
+  }),
+);
+await worker.start({ onUnhandledFrame: 'bypass' });
+```
+
+The endpoint paths are relative to the issuer URL; use the app's base URL as issuer (the origin when
+it is served at `/`).
+
+The service worker hands a navigation to a page that runs MSW. Sign-in redirects, sign-out redirects
+and silent sign-in iframes started by the app are therefore answered, as are new tabs while another
+tab of the app is open. Opening the authorize URL in a fresh browser, reloading the authorize page,
+or navigating to it from a page that does not start the worker reaches your server instead.
+
+## The authorize page
+
+The pages are self-contained: the authorize form is a prebuilt React and AutoForm bundle, so your
+app needs neither. The claims schema is embedded as JSON Schema and turned back into a zod schema in
+the browser:
+
+| Claims schema             | Form field           |
+| ------------------------- | -------------------- |
+| `z.string()`, `z.email()` | text input           |
+| `z.number()`, `z.int()`   | number input         |
+| `z.boolean()`             | checkbox             |
+| `z.enum([...])`           | select               |
+| `z.array(z.enum([...]))`  | checkbox group       |
+| `z.array(...)`            | repeatable list      |
+| `z.object(...)`           | nested fieldset      |
+| `z.array(z.object(...))`  | repeatable fieldsets |
+
+`.meta({ title, description })` provides labels and help texts, also for nested objects and arrays.
+Array items are labelled after their array ("Tenants item"), including untitled ones. Refinements and
+transforms cannot be represented as JSON Schema; they are not checked by the form, but they are
+applied when the MSW handlers read the identity.
+
+The selected subject and claims are kept in `sessionStorage` (`mock.oidc.subject` and
+`mock.oidc.claims`).
+
+## Production builds
+
+To keep the mock provider out of production builds, load the worker, the handlers and the mock
+configuration with a dynamic import behind a build-time condition:
+
+```ts
+// mocks.ts: the only module that imports the worker setup.
+export async function enableMocking() {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
+  const { startMockOidcWorker } = await import('./mock-oidc-worker');
+  await startMockOidcWorker();
+}
+```
+
+Static imports of the handlers or of the configuration from the app's entry modules are not enough:
+the zod schemas in the configuration are not removed as dead code. The e2e suite builds the example
+app in production mode and checks that no module of `@mvd/mock-oidc`, jose, MSW or the claims
+configuration ends up in it.

@@ -1,7 +1,7 @@
 # @mvd/mock-oidc
 
-**Live demo:** https://mock-oidc.mvd.im/ — the example app
-from [`apps/e2e`](https://github.com/meesvandongen/mock-oidc/tree/main/apps/e2e)
+**Live demo:** https://demo.mock-oidc.mvd.im/ — the example app
+from [`apps/demo`](https://github.com/meesvandongen/mock-oidc/tree/main/apps/demo)
 as a static site, with one page per OIDC client library.
 
 A mock OpenID Connect provider for single-page apps:
