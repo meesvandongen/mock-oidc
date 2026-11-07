@@ -2,7 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 const devServerUrl = 'http://localhost:5173';
 const playwrightServerUrl = 'http://localhost:5174';
-// Served under the same sub-path as the GitHub Pages deployment.
+// Served under a sub-path, to check that the app does not assume it runs at
+// the site root.
 const staticBase = '/mock-oidc/';
 const staticServerUrl = `http://localhost:5175${staticBase}`;
 
@@ -31,7 +32,7 @@ export default defineConfig({
     },
     {
       // The same flow against a static build served by `vite preview`
-      // under the GitHub Pages sub-path. The build output contains no
+      // under a sub-path. The build output contains no
       // provider pages; the worker serves them.
       name: 'msw-static',
       testDir: 'tests/msw-worker',
