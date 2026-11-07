@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  // Hosts the example app (apps/e2e) as a static site at demo.mock-oidc.mvd.im. The mock provider,
+  // Hosts the example app (apps/demo) as a static site at demo.mock-oidc.mvd.im. The mock provider,
   // including its authorize and end session pages, runs in the browser with
   // the MSW worker, so there is no Worker script.
   "name": "mock-oidc-demo",

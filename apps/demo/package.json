@@ -1,10 +1,10 @@
 {
-  "name": "@mvd/mock-oidc-e2e",
+  "name": "@mvd/mock-oidc-demo",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build:cloudflare": "vp build --mode static",
+    "build": "pnpm --filter @mvd/mock-oidc build && vp build --mode static",
     "test": "playwright test",
     "typecheck": "tsc -p tsconfig.json"
   },
