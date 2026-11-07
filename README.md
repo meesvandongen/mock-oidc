@@ -51,7 +51,7 @@ that it contains nothing of the mock provider.
 
 The live demo is the same static build, deployed to Cloudflare Workers as
 static assets only (no Worker script) with Workers Builds, configured by
-`apps/e2e/wrangler.jsonc`: `main` runs `wrangler deploy` to
+`wrangler.jsonc`: `main` runs `wrangler deploy` to
 [demo.mock-oidc.mvd.im](https://demo.mock-oidc.mvd.im/), and every other
 branch gets its own Preview from `wrangler preview`, linked from its pull
 request. Build it locally with `pnpm build:cloudflare`.
@@ -62,8 +62,8 @@ request. Build it locally with `pnpm build:cloudflare`.
 exported) published at [mock-oidc.mvd.im](https://mock-oidc.mvd.im/). It is
 deployed the same way as the demo, configured by `apps/docs/wrangler.jsonc`.
 Run it with `pnpm dev:docs` and build it with `pnpm build:docs`. Point each
-Workers Builds project at its app directory (`apps/e2e` and `apps/docs`) so
-that `wrangler deploy` picks up the matching config.
+Workers Builds project at its config: the demo builds from the repository
+root (`wrangler.jsonc`), the docs from `apps/docs`.
 
 ## Releasing
 
