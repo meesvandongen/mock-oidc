@@ -5,8 +5,9 @@ import { issuerUrl, pageUrl } from './app-urls';
 import { clientId, mockOidcConfig } from './mock-oidc.config';
 
 /**
- * Starts the MSW service worker that serves the mock provider's discovery,
- * JWKS, token and userinfo endpoints. Only loaded through `enableMocking`.
+ * Starts the MSW service worker that serves the whole mock provider: the
+ * authorize and end session pages and the discovery, JWKS, token and userinfo
+ * endpoints. Only loaded through `enableMocking`.
  */
 export async function startMockOidcWorker() {
   const worker = setupWorker(

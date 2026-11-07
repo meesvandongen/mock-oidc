@@ -1,7 +1,6 @@
 /**
- * Starts the MSW service worker that mocks the provider during development
- * and in the static demo. The interactive authorize and logout pages are
- * served by the Vite plugin.
+ * Starts the MSW service worker that mocks the provider, including its
+ * authorize and logout pages, during development and in the static demo.
  *
  * The worker, the mock provider and its configuration are imported
  * dynamically, so production builds contain none of them.

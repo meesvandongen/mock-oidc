@@ -34,15 +34,17 @@ exec playwright install chromium`). To use a different Chromium build, set
 [oidc-react](https://github.com/bjerkio/oidc-react),
 [oidc-spa](https://github.com/keycloakify/oidc-spa) and
 [@axa-fr/react-oidc](https://github.com/AxaFrance/oidc-client). Every library
-is tested in three Playwright projects:
+is tested in these Playwright projects:
 
-- `vite-dev` runs the development flow: the MSW worker in the browser plus the
-  AutoForm authorize page served by the Vite plugin;
-- `vite-static` runs the same tests against a static build served by
-  `vp preview` under `/mock-oidc/`, using the pages the plugin writes to the
-  build output;
-- `playwright-adapter` runs the app without the plugin and worker
+- `msw-dev` runs the development flow: the MSW worker in the browser serves
+  the whole provider, including the AutoForm authorize page;
+- `msw-static` runs the same tests against a static build served by
+  `vp preview` under `/mock-oidc/`;
+- `playwright-adapter` runs the app without the worker
   (`vp dev --mode playwright`) and mocks the provider from the test process.
+
+`tests/msw-worker/navigation.spec.ts` also pins down when the worker cannot
+serve the authorize page (fresh tabs, reloads, pages without the worker).
 
 The `production-build` project builds the app in production mode and checks
 that it contains nothing of the mock provider.
@@ -50,6 +52,11 @@ that it contains nothing of the mock provider.
 The same static build is published to GitHub Pages by
 `.github/workflows/pages.yml` on every push to `main`. Build it locally with
 `pnpm --filter @mvd/mock-oidc-e2e build:pages`.
+
+It is also deployed to Cloudflare Workers with Workers Builds, configured by
+`wrangler.jsonc`: `main` runs `wrangler deploy`, and every other branch gets
+its own Preview from `wrangler preview`. Build it locally with
+`pnpm build:cloudflare`.
 
 ## Releasing
 

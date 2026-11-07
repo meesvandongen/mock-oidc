@@ -5,8 +5,8 @@ import { playwright } from 'vite-plus/test/browser-playwright';
 // the one bundled with the installed Playwright version.
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
-/** Specs for code that runs in Node.js: the Vite plugin and Playwright adapter. */
-const nodeSpecs = ['src/vite/**/*.spec.ts', 'src/playwright.spec.ts'];
+/** Specs for code that runs in Node.js: the Playwright adapter. */
+const nodeSpecs = ['src/playwright.spec.ts'];
 
 export default defineConfig({
   pack: {
@@ -17,16 +17,13 @@ export default defineConfig({
       identity: 'src/identity.ts',
       'oidc-session': 'src/oidc-session.ts',
       playwright: 'src/playwright.ts',
-      vite: 'src/vite.ts',
       authorization: 'src/authorization.ts',
     },
     format: 'esm',
-    // Most entries run in the browser as well as in Node.js; `neutral` also
+    // The entries run in the browser as well as in Node.js; `neutral` also
     // keeps the `.js`/`.d.ts` extensions that the exports map points to.
     platform: 'neutral',
     target: 'es2022',
-    // Only the Vite plugin imports Node.js built-ins.
-    deps: { neverBundle: [/^node:/] },
     dts: true,
   },
   test: {

@@ -26,7 +26,7 @@ jobs:
       - run: pnpm typecheck
       - name: Unit tests (Node and Chromium)
         run: pnpm test
-      - name: E2E tests (vite-dev, vite-static and playwright-adapter)
+      - name: E2E tests (msw-dev, msw-static and playwright-adapter)
         run: pnpm test:e2e
       - name: Lint the packed package (publint)
         run: pnpm lint:publish

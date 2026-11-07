@@ -32,10 +32,6 @@
       "types": "./dist/playwright.d.ts",
       "import": "./dist/playwright.js"
     },
-    "./vite": {
-      "types": "./dist/vite.d.ts",
-      "import": "./dist/vite.js"
-    },
     "./authorization": {
       "types": "./dist/authorization.d.ts",
       "import": "./dist/authorization.js"
@@ -54,14 +50,8 @@
     "jose": "^6.2.3"
   },
   "peerDependencies": {
-    "msw": ">=2 <4",
-    "vite": ">=6 <9",
+    "msw": ">=3 <4",
     "zod": "^4.0.0"
-  },
-  "peerDependenciesMeta": {
-    "vite": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@autoform/core": "^4.0.0",

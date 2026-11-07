@@ -23,18 +23,18 @@ export default defineConfig({
   },
   projects: [
     {
-      // The development flow: MSW worker in the browser plus the
-      // interactive authorize page served by the Vite plugin.
-      name: 'vite-dev',
-      testDir: 'tests/vite-plugin',
+      // The development flow: the MSW worker in the browser serves the
+      // whole provider, including the authorize and end session pages.
+      name: 'msw-dev',
+      testDir: 'tests/msw-worker',
       use: { baseURL: devServerUrl },
     },
     {
-      // The same flow against a static build: the pages the Vite plugin
-      // writes to the build output, served by `vite preview` under the
-      // GitHub Pages sub-path.
-      name: 'vite-static',
-      testDir: 'tests/vite-plugin',
+      // The same flow against a static build served by `vite preview`
+      // under the GitHub Pages sub-path. The build output contains no
+      // provider pages; the worker serves them.
+      name: 'msw-static',
+      testDir: 'tests/msw-worker',
       use: { baseURL: staticServerUrl },
     },
     {
