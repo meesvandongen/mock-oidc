@@ -11,10 +11,10 @@ allowBuilds:
   msw: false
 
 catalog:
-  '@vitest/browser-playwright': 5.0.5
-  vite: npm:@voidzero-dev/vite-plus-core@1.4.0
-  vite-plus: 1.4.0
-  vitest: 5.0.5
+  '@vitest/browser-playwright': 5.1.0
+  vite: npm:@voidzero-dev/vite-plus-core@1.5.0
+  vite-plus: 1.5.0
+  vitest: 5.1.0
 
 # vite-plus provides `vite` (its own core) and `vitest`; point every copy at
 # the catalog versions and accept them as peers.
