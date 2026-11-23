@@ -57,7 +57,7 @@
     "@autoform/core": "^4.0.0",
     "@autoform/react": "^5.0.0",
     "@autoform/zod": "^6.0.0",
-    "@hookform/resolvers": "^5.9.1",
+    "@hookform/resolvers": "^7.0.0",
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
